@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Homework 2: from wallet seed to Ethereum address</title>
+<meta name="description" content="Homework 2 by Riccardo Santoni: the Ethereum wallet pipeline rebuilt in the browser (BIP-39, BIP-32, BIP-44, secp256k1, Keccak-256, EIP-55), with statistics and history.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='80' fill='%23C3C6C1'/><rect x='4' y='4' width='80' height='80' fill='%231F2120'/><text x='44' y='58' font-size='36' text-anchor='middle' font-family='Menlo,monospace' font-weight='bold' fill='%23F8F8F6'>0x</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Schibsted+Grotesk:ital,wght@0,400..800;1,400..800&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   NEOBRUTALIST / WEB3 THEME
+   Flat fills, thick ink outlines and hard offset shadows; an elegant
+   high-contrast serif (Gloock) for headings, a technical monospace
+   (Martian Mono) for every number, label and control.
+   Colour roles: mint/teal = private (k, G) · pink = public (Q) ·
+   yellow = what is happening now · violet = the Keccak-256 control.
+   The script reads --ink, --muted, --rule, --sheet, --key, --pub, --step,
+   --hash and --sans for the canvases, so these stay plain #rrggbb / font lists.
+   ===================================================================== */
+:root {
+  /* neutral greys; colour only where it carries meaning */
+  --paper: #ECEDEA;
+  --paper-2: #E3E4E0;
+  --sheet: #F8F8F6;
+  --ink: #1F2120;
+  --muted: #5E625F;
+  --rule: #CDD0CB;
+  --line: #2B2E2C;
+  --on-fill: #1F2120;
+  --key: #1F7A6C;    --key-fill: #EAF3EF;  --key-soft: rgba(31, 122, 108, .12); --key-deep: #1F7A6C;
+  --pub: #B33A5C;    --pub-fill: #F7E7EC;  --pub-soft: rgba(179, 58, 92, .12);
+  --step: #B87C12;   --step-fill: #F5EDD8; --step-ink: #8F6008; --step-soft: rgba(184, 124, 18, .18);
+  --hash: #5B52C4;   --hash-fill: #E4E2F5; --hash-soft: rgba(91, 82, 196, .12);
+  --shadow-c: #C3C6C1;
+  --sh-sm: 2px 2px 0 var(--shadow-c);
+  --sh: 4px 4px 0 var(--shadow-c);
+  --sh-lg: 6px 6px 0 var(--shadow-c);
+  --bw: 1.5px;
+  --display: "Gloock", "Bodoni 72", Didot, "Times New Roman", serif;
+  --mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; /* canvas labels */
+  --text: "Schibsted Grotesk", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --math: "STIX Two Text", "Cambria Math", Cambria, "Times New Roman", serif;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #161A20; --paper-2: #1C2128; --sheet: #20262E; --ink: #E8ECEF; --muted: #A0A9B3; --rule: #333B45; --line: #5E6873; --on-fill: #E8ECEF;
+    --key: #5FD0BC; --key-fill: #1E3B38; --key-deep: #5FD0BC; --pub: #F291AD; --pub-fill: #43273A;
+    --step: #E9C066; --step-ink: #E9C066; --step-fill: #3E3423; --hash: #AFA9F7; --hash-fill: #2C2B4C; --hash-soft: rgba(175, 169, 247, .14);
+    --shadow-c: #0B0D11;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #161A20; --paper-2: #1C2128; --sheet: #20262E; --ink: #E8ECEF; --muted: #A0A9B3; --rule: #333B45; --line: #5E6873; --on-fill: #E8ECEF;
+  --key: #5FD0BC; --key-fill: #1E3B38; --key-deep: #5FD0BC; --pub: #F291AD; --pub-fill: #43273A;
+  --step: #E9C066; --step-ink: #E9C066; --step-fill: #3E3423; --hash: #AFA9F7; --hash-fill: #2C2B4C; --hash-soft: rgba(175, 169, 247, .14);
+  --shadow-c: #0B0D11;
+  color-scheme: dark;
+}
+
+/* ---------- base ---------- */
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 84px); scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+html, body { overflow-x: clip; }
+body {
+  margin: 0; background-color: var(--paper); color: var(--ink);
+  font-family: var(--text); font-size: 17px; line-height: 1.62; -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 16%, transparent) 1.1px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+img, canvas, svg { max-width: 100%; display: block; }
+a { color: var(--ink); text-decoration-color: var(--key); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a:hover { background: var(--key-soft); }
+:focus-visible { outline: 3px dashed var(--hash); outline-offset: 3px; }
+::selection { background: var(--step-fill); color: var(--on-fill); }
+p { margin: 0 0 1rem; }
+
+/* custom scrollbars: thick, inked, mint thumb */
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+::-webkit-scrollbar { width: 13px; height: 13px; }
+::-webkit-scrollbar-track { background: var(--paper-2); border-left: 2px solid var(--line); }
+::-webkit-scrollbar-thumb { background: var(--key-fill); border: 2.5px solid var(--line); }
+::-webkit-scrollbar-thumb:hover { background: var(--step-fill); }
+::-webkit-scrollbar-corner { background: var(--paper-2); }
+
+/* math stays in a textbook serif */
+.m { font-family: var(--math); font-style: italic; font-size: 1.07em; }
+.m b, .m strong { font-weight: 600; }
+.mk { color: var(--key); }
+.mq { color: var(--pub); }
+.formula {
+  font-family: var(--math); font-size: 1.12rem; line-height: 1.9; margin: 1.2rem 0; padding: .9rem 1.2rem; overflow-x: auto;
+  background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh);
+  border-left: 12px solid var(--key-fill);
+}
+.formula i { font-style: italic; }
+
+/* ---------- top bar ---------- */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; background: var(--paper); border-bottom: var(--bw) solid var(--line); }
+.bar-in { max-width: 1320px; margin: 0 auto; padding: .6rem 1.5rem; display: flex; gap: 1.4rem; align-items: center; }
+.brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; color: var(--ink); flex: none; }
+.brand:hover { background: none; }
+.brand-mark {
+  width: 2.3rem; height: 2.3rem; display: grid; place-items: center; font-family: var(--display); font-size: 1.5rem;
+  background: var(--key-fill); color: var(--on-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm);
+}
+.brand-txt { font-family: var(--display); font-size: 1.25rem; line-height: 1; }
+.brand-txt small { display: block; font-family: var(--mono); font-size: .62rem; color: var(--muted); margin-top: .25rem; letter-spacing: .02em; }
+.nav { display: flex; gap: .45rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; min-width: 0; padding: 4px 6px 7px 2px; }
+.nav::-webkit-scrollbar { display: none; }
+.nav a {
+  font-family: var(--mono); font-size: .76rem; font-weight: 500; color: var(--ink); text-decoration: none; white-space: nowrap;
+  padding: .38rem .7rem; border: 2px solid transparent;
+}
+.nav a .n { color: var(--key); font-weight: 800; margin-right: .35rem; }
+.nav a:hover { background: var(--sheet); border-color: var(--line); }
+.nav a.on { background: var(--step-fill); color: var(--on-fill); border-color: var(--line); box-shadow: var(--sh-sm); }
+.nav a.on .n { color: var(--on-fill); }
+.theme-btn {
+  width: 2.4rem; height: 2.4rem; flex: none; cursor: pointer; font-size: 1.05rem; color: var(--on-fill);
+  background: var(--hash-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm);
+}
+.theme-btn:active { transform: translate(3px, 3px); box-shadow: none; }
+
+/* ---------- layout ---------- */
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 1.5rem; }
+h1, h2, h3 { margin: 0; font-weight: 400; }
+h2 { font-family: var(--display); font-size: clamp(2.1rem, 3.4vw, 2.9rem); line-height: 1.02; letter-spacing: -.01em; }
+h3 { font-family: var(--display); font-size: 1.65rem; line-height: 1.1; margin: 2.8rem 0 .9rem; }
+.lede { color: var(--muted); font-size: 1rem; margin: .9rem 0 0; }
+.prose { max-width: 68ch; }
+.prose p { margin: 0 0 1rem; }
+.small { font-size: .9rem; color: var(--muted); }
+
+/* ---------- hero: asymmetric, overlapping ---------- */
+.hero { padding-block: 3.2rem 4.2rem; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 3.5rem; align-items: center; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.6rem; }
+.pill { font-family: var(--mono); font-size: .72rem; font-weight: 600; padding: .3rem .65rem; background: var(--sheet); border: 2px solid var(--line); box-shadow: var(--sh-sm); }
+.pill-key { background: var(--key-fill); color: var(--on-fill); }
+.hero h1 { font-family: var(--display); font-size: clamp(3rem, 7.4vw, 6.4rem); line-height: .92; letter-spacing: -.02em; }
+.hero h1 .h-priv, .hero h1 .h-pub { display: inline-block; padding: .02em .18em .1em; border: var(--bw) solid var(--line); box-shadow: var(--sh); color: var(--on-fill); }
+.hero h1 .h-priv { background: var(--key-fill); transform: rotate(-1.5deg); }
+.hero h1 .h-pub { background: var(--pub-fill); transform: rotate(1deg); margin-left: .5em; }
+.hero h1 .arrow { display: block; font-family: var(--mono); font-size: max(.72rem, .17em); letter-spacing: .01em; line-height: 1.4; color: var(--muted); margin: .9em 0 .9em .4em; }
+.hero h1 .arrow::before { content: "↳ "; color: var(--ink); }
+.hero-lede { font-size: 1.08rem; max-width: 50ch; margin: 2rem 0 1.6rem; }
+.equation { display: flex; flex-wrap: wrap; align-items: center; gap: .55rem .7rem; font-family: var(--math); font-size: clamp(1.15rem, 2vw, 1.45rem); }
+.eq-keys { margin-top: .8rem; }
+.equation .tok { padding: .15rem .65rem; border: 2px solid var(--line); background: var(--sheet); box-shadow: var(--sh-sm); }
+.equation .tk { background: var(--key-fill); color: var(--on-fill); }
+.equation .tq { background: var(--pub-fill); color: var(--on-fill); font-weight: 600; }
+.equation .tcurve { background: var(--sheet); }
+.equation .op { font-family: var(--mono); color: var(--muted); }
+.hero-visual { position: relative; padding: 1.2rem 1.6rem 0 0; }
+.window { background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-lg); transform: rotate(1.2deg); }
+.window-bar { display: flex; align-items: center; gap: .8rem; padding: .5rem .8rem; border-bottom: var(--bw) solid var(--line); background: var(--step-fill); color: var(--on-fill); font-family: var(--mono); font-size: .72rem; font-weight: 600; }
+.wb-dots { display: flex; gap: .35rem; }
+.wb-dots i { width: .8rem; height: .8rem; border: 2px solid var(--on-fill); background: var(--sheet); border-radius: 50%; }
+.wb-dots i:nth-child(1) { background: var(--pub-fill); } .wb-dots i:nth-child(2) { background: var(--key-fill); }
+.wb-meta { margin-left: auto; opacity: .75; }
+.hero-canvas-box { position: relative; aspect-ratio: 1; width: 100%; padding: .6rem; }
+.hero-canvas-box canvas { width: 100%; height: 100%; }
+.sticker { position: absolute; z-index: 2; font-family: var(--mono); font-weight: 800; font-size: 1rem; color: var(--on-fill); padding: .55rem .8rem; border: var(--bw) solid var(--line); box-shadow: var(--sh); line-height: 1.2; }
+.sticker small { display: block; font-size: .62rem; font-weight: 500; opacity: .8; }
+.sticker-q { background: var(--pub-fill); right: -.6rem; bottom: 2.4rem; transform: rotate(-6deg); }
+.sticker-k { background: var(--key-fill); left: -2.6rem; top: -1.5rem; transform: rotate(-5deg); }
+.hero-cap { font-family: var(--mono); font-size: .72rem; color: var(--muted); margin-top: 2.4rem; max-width: 52ch; line-height: 1.6; }
+.replay { font: inherit; font-weight: 700; cursor: pointer; color: var(--on-fill); background: var(--step-fill); border: 2px solid var(--line); padding: .05rem .5rem; margin-left: .3rem; box-shadow: 2px 2px 0 var(--shadow-c); }
+.replay:active { transform: translate(2px, 2px); box-shadow: none; }
+
+/* ticker band */
+.ticker { overflow: hidden; border-block: var(--bw) solid var(--line); background: var(--ink); color: var(--paper); transform: rotate(-.6deg); margin: 0; }
+.ticker-track { display: flex; width: max-content; animation: tick 38s linear infinite; }
+.ticker span { font-family: var(--mono); font-size: .82rem; font-weight: 600; padding: .55rem 1.3rem; white-space: nowrap; }
+.ticker span::after { content: "◆"; margin-left: 2.6rem; color: var(--key-fill); }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+@keyframes tick { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
+
+/* ---------- summary ---------- */
+#summary { padding-block: 4.2rem 0; }
+.summary-box { position: relative; max-width: 62rem; margin-left: auto; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: 10px 10px 0 var(--pub-fill), 10px 10px 0 2.5px var(--line); padding: 2rem 2.3rem 1.2rem; }
+.summary-box h2 { margin-bottom: 1rem; }
+.summary-text { max-width: 70ch; }
+.sum-sticker { position: absolute; top: -1.2rem; left: -1.2rem; font-family: var(--mono); font-weight: 800; font-size: .9rem; padding: .35rem .7rem; color: var(--on-fill); background: var(--step-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm); transform: rotate(-8deg); }
+
+/* ---------- task sections: sticky sidebar + content ---------- */
+section.task { display: grid; grid-template-columns: minmax(0, 19rem) minmax(0, 1fr); gap: 3rem; padding-block: 6rem 1rem; align-items: start; }
+.task-head { position: sticky; top: 6.2rem; display: flex; flex-direction: column; gap: 0; }
+.task-num {
+  width: 5.6rem; height: 5.6rem; display: grid; place-items: center; margin-bottom: 1.2rem;
+  font-family: var(--display); font-size: 3.6rem; line-height: 1; color: var(--on-fill);
+  background: var(--key-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh); transform: rotate(-4deg);
+}
+section.task:nth-of-type(2n) .task-num { background: var(--pub-fill); transform: rotate(3deg); }
+section.task#explore .task-num { background: var(--step-fill); }
+section.task#real .task-num { background: var(--hash-fill); }
+.task-head .lede { font-size: .95rem; }
+.task-body { min-width: 0; }
+.task-body > :first-child { margin-top: 0; }
+
+/* sub-navigation inside the sidebar */
+.subnav { display: flex; flex-direction: column; gap: .35rem; margin-top: 1.4rem; padding-top: 1rem; border-top: 2px dashed var(--line); }
+.subnav a { font-family: var(--mono); font-size: .72rem; font-weight: 500; text-decoration: none; padding: .3rem .55rem; border: 2px solid transparent; }
+.subnav a::before { content: "→ "; color: var(--key); }
+.subnav a:hover { background: var(--sheet); border-color: var(--line); box-shadow: var(--sh-sm); }
+
+/* ---------- panels ---------- */
+.sheet { background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); padding: 1.15rem 1.3rem; }
+
+/* ---------- controls: chunky, inked ---------- */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 1rem 1.1rem; align-items: flex-end; margin: 1.4rem 0 1.6rem;
+  padding: 1.1rem 1.2rem 1.25rem; background: var(--paper-2); border: var(--bw) dashed var(--line);
+}
+.field { display: flex; flex-direction: column; gap: .35rem; font-family: var(--mono); font-size: .68rem; font-weight: 600; color: var(--muted); }
+.field label { color: var(--ink); }
+.field label .m { font-size: 1.2em; }
+select, input[type=number], input[type=text] {
+  font-family: var(--mono); font-size: .86rem; font-weight: 500; color: var(--ink);
+  background-color: var(--sheet); border: var(--bw) solid var(--line); border-radius: 0; padding: .6rem .75rem;
+  min-width: 7.5rem; box-shadow: var(--sh-sm); transition: transform .1s, box-shadow .1s;
+}
+select {
+  -webkit-appearance: none; appearance: none; padding-right: 2.4rem; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%), linear-gradient(var(--key-fill), var(--key-fill));
+  background-position: calc(100% - 1.15rem) 52%, calc(100% - .8rem) 52%, 100% 0;
+  background-size: 6px 6px, 6px 6px, 1.95rem 100%; background-repeat: no-repeat;
+}
+select:focus, input[type=number]:focus, input[type=text]:focus { outline: none; transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--hash); }
+input[type=text].hex { width: min(100%, 46rem); }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 10rem; height: 2.6rem; background: transparent; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 10px; background: var(--sheet); border: 2px solid var(--line); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; background: var(--key-fill); border: 2.5px solid var(--line); box-shadow: 2px 2px 0 var(--shadow-c); }
+input[type=range]::-moz-range-track { height: 6px; background: var(--sheet); border: 2px solid var(--line); }
+input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 0; background: var(--key-fill); border: 2.5px solid var(--line); }
+button.btn {
+  font-family: var(--mono); font-weight: 700; font-size: .8rem; cursor: pointer; color: var(--on-fill);
+  border: var(--bw) solid var(--line); border-radius: 0; padding: .7rem 1.1rem; background: var(--key-fill); box-shadow: var(--sh);
+  transition: transform .1s, box-shadow .1s;
+}
+button.btn.ghost { background: var(--sheet); color: var(--ink); }
+button.btn:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--shadow-c); }
+button.btn:active:not(:disabled) { transform: translate(5px, 5px); box-shadow: none; }
+button.btn:disabled { opacity: .5; cursor: default; }
+@media (prefers-reduced-motion: reduce) { button.btn, select, input { transition: none; } }
+
+/* ---------- the toy public key ---------- */
+.result {
+  position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.6rem; margin: 1.8rem 0 2rem;
+  padding: 1.4rem 1.6rem 1.2rem; background: var(--pub-fill); color: var(--on-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh-lg);
+}
+.result .lbl { font-family: var(--mono); font-size: .76rem; font-weight: 800; padding: .3rem .6rem; background: var(--sheet); color: var(--ink); border: 2px solid var(--line); transform: rotate(-3deg); }
+.result .val { font-family: var(--math); font-size: clamp(1.8rem, 4.4vw, 2.9rem); }
+.result .note { flex-basis: 100%; font-size: .92rem; }
+.result .note .m { color: var(--on-fill); font-weight: 600; }
+
+/* ---------- facts: stat tiles ---------- */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .9rem; margin: .4rem 0 1.2rem; }
+.fact { position: relative; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm); padding: .8rem .9rem .7rem; }
+.fact::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 7px; background: var(--key-fill); border-bottom: 2px solid var(--line); }
+.fact:nth-child(2n)::before { background: var(--hash-fill); }
+.fact b { display: block; font-family: var(--mono); font-weight: 800; font-size: 1.55rem; margin-top: .3rem; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.fact span { font-family: var(--mono); font-size: .64rem; color: var(--muted); line-height: 1.5; display: block; }
+.fact.warn::before { background: var(--step-fill); }
+.fact.warn b { color: var(--step-ink); }
+
+/* point chips */
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip { font-family: var(--mono); font-size: .7rem; font-weight: 500; padding: .25rem .5rem; background: var(--sheet); border: 2px solid var(--line); }
+.chip:hover { background: var(--step-fill); color: var(--on-fill); }
+.chip.g { background: var(--key-fill); color: var(--on-fill); font-weight: 800; box-shadow: var(--sh-sm); }
+.chip.q { background: var(--pub-fill); color: var(--on-fill); font-weight: 800; box-shadow: var(--sh-sm); }
+
+/* ---------- tables as infographics ---------- */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
+.two h3 { margin-top: 1rem; font-size: 1.35rem; }
+.scroll { overflow-x: auto; }
+.tbl-box { max-height: 26rem; overflow: auto; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-family: var(--mono); font-size: .74rem; }
+th, td { padding: .55rem .75rem; text-align: left; vertical-align: top; border-bottom: 1.5px solid var(--rule); }
+th { position: sticky; top: 0; z-index: 1; background: var(--ink); color: var(--paper); font-weight: 700; font-size: .7rem; border-bottom: var(--bw) solid var(--line); }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--key-fill) 9%, var(--sheet)); }
+tbody tr { transition: background-color .12s; }
+tbody tr:hover td { background: var(--step-fill); color: var(--on-fill); }
+tbody tr:last-child td { border-bottom: 0; }
+tr.final td, tr.final:hover td { background: var(--pub-fill) !important; color: var(--on-fill); font-weight: 800; border-block: 2px solid var(--line); }
+tr.zero td { color: var(--muted); font-style: italic; }
+td.pt { font-family: var(--math); font-size: .98rem; white-space: nowrap; }
+.bits { display: flex; gap: 4px; margin: .5rem 0 1rem; flex-wrap: wrap; }
+.bits span { width: 1.7rem; height: 2rem; display: grid; place-items: center; font-family: var(--mono); font-weight: 800; font-size: .8rem; background: var(--sheet); border: 2px solid var(--line); }
+.bits span.one { background: var(--key-fill); color: var(--on-fill); box-shadow: 2px 2px 0 var(--shadow-c); }
+.bits span.cur { outline: 3px solid var(--step); outline-offset: 2px; }
+
+/* ---------- visualiser ---------- */
+.viz { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 1.6rem; align-items: start; }
+.viz-canvas { aspect-ratio: 1; width: 100%; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-lg); }
+.viz-side { display: flex; flex-direction: column; gap: 1rem; }
+.phase-list { display: flex; flex-wrap: wrap; gap: 0; border: var(--bw) solid var(--line); background: var(--sheet); }
+.phase-list span { flex: 1 1 auto; text-align: center; font-family: var(--mono); font-size: .66rem; font-weight: 600; padding: .45rem .4rem; color: var(--muted); border-right: 2px solid var(--line); }
+.phase-list span:last-child { border-right: 0; }
+.phase-list span.on { background: var(--step-fill); color: var(--on-fill); }
+.op-title { font-family: var(--display); font-size: 1.55rem; margin: 0 0 .4rem; }
+.calc { font-family: var(--math); font-size: 1.04rem; line-height: 1.85; }
+.calc .hl { background: var(--step-fill); color: var(--on-fill); padding: 0 .25rem; box-shadow: 2px 2px 0 var(--shadow-c); }
+/* operation list as a terminal */
+.oplist { max-height: 15rem; overflow: auto; position: relative; padding: .5rem 0; background: #0E1D18; color: #BFEFDF; border: var(--bw) solid var(--line); box-shadow: var(--sh); font-family: var(--mono); font-size: .7rem; }
+.oplist div { padding: .3rem .9rem; cursor: pointer; color: #6F988A; }
+.oplist div::before { content: "$ "; color: #3FD9B2; }
+.oplist div.done { color: #DDF7EE; }
+.oplist div.cur { background: #FFD84A; color: #0E1D18; font-weight: 800; }
+.oplist div.cur::before { color: #0E1D18; }
+.oplist div:hover:not(.cur) { background: rgba(63, 217, 178, .16); }
+.legend { display: flex; flex-wrap: wrap; gap: .45rem; font-family: var(--mono); font-size: .66rem; color: var(--ink); }
+.legend > span { display: inline-block; padding: .25rem .55rem; background: var(--sheet); border: 2px solid var(--line); }
+.legend i { display: inline-block; width: .75rem; height: .75rem; border-radius: 50%; margin-right: .4rem; border: 1.5px solid var(--line); vertical-align: -.1rem; }
+.legend i.line { height: .3rem; width: 1.3rem; border-radius: 0; }
+.legend i.dash { height: 0; width: 1.3rem; border: 0; border-top: 2px dashed var(--ink); background: none !important; }
+.big-legend { margin: 0 0 .8rem; }
+.real-box { display: grid; grid-template-columns: minmax(0, 330px) 1fr; gap: 2rem; align-items: center; margin-top: 2.4rem; }
+.real-box svg { background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); }
+.real-box h3 { margin-top: 0; }
+.real-box .btn { margin-right: .6rem; }
+
+/* ---------- statistics ---------- */
+.matrix { border-collapse: separate; border-spacing: 3px; font-family: var(--mono); background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); }
+.matrix td, .matrix th { padding: .3rem .38rem; font-size: .64rem; text-align: center; white-space: nowrap; border: 1.5px solid color-mix(in srgb, var(--line) 35%, transparent); }
+.matrix th { position: static; background: var(--ink); color: var(--paper); border-color: var(--line); }
+.matrix td { transition: transform .12s; }
+.matrix td:hover { transform: scale(1.18); position: relative; z-index: 2; border-color: var(--line); box-shadow: 2px 2px 0 var(--shadow-c); background-color: var(--step-fill) !important; color: var(--on-fill); }
+.matrix td.o { background: var(--ink) !important; color: var(--paper); font-weight: 800; }
+.matrix td.base { font-weight: 800; }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.6rem; margin-top: 1rem; }
+.chart { display: flex; flex-direction: column; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); }
+.chart.wide { grid-column: 1 / -1; }
+.chart h4 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 1.22rem; line-height: 1.15; padding: .75rem 1rem .6rem; border-bottom: var(--bw) solid var(--line); background: color-mix(in srgb, var(--key-fill) 22%, var(--sheet)); }
+.chart:nth-child(4n+2) h4, .chart:nth-child(4n+3) h4 { background: color-mix(in srgb, var(--hash-fill) 30%, var(--sheet)); }
+.chart .look { font-family: var(--mono); font-size: .64rem; color: var(--muted); line-height: 1.6; margin: .7rem 1rem .4rem; }
+.chart canvas { width: calc(100% - 1.4rem); height: 240px; margin: 0 .7rem; }
+.chart.wide canvas { height: 260px; }
+.chart .verdict { font-size: .86rem; margin: .7rem 1rem 1rem; padding: .65rem .8rem; background: var(--paper-2); border: 2px dashed var(--line); }
+.status { font-family: var(--mono); font-size: .72rem; color: var(--muted); min-height: 1.4em; }
+
+/* scoreboard and other tables */
+.score td.ec, .score td.hs { white-space: nowrap; }
+.score td.ec { color: var(--pub); font-weight: 800; }
+.score td.hs { color: var(--hash); font-weight: 800; }
+.score td.rf { color: var(--muted); }
+.score td.apart { white-space: nowrap; font-weight: 800; }
+.score td.apart.y::before { content: ""; display: inline-block; width: .7rem; height: .7rem; background: var(--step-fill); border: 2px solid var(--line); margin-right: .45rem; vertical-align: -.1rem; }
+.score td.apart.n { color: var(--muted); font-weight: 500; }
+.score tr.group td, .score tr.group:hover td { background: var(--key-fill) !important; color: var(--on-fill); font-weight: 800; font-size: .7rem; border-block: 2px solid var(--line); }
+tbody tr:hover td.ec, tbody tr:hover td.hs { color: var(--on-fill); }
+
+.props td:first-child { font-family: var(--display); font-size: .98rem; font-weight: 400; }
+.props td { font-family: var(--text); font-size: .86rem; }
+.props td.live { font-family: var(--mono); font-size: .7rem; color: var(--key); font-weight: 600; min-width: 12rem; }
+.tag { display: inline-block; font-family: var(--mono); font-size: .62rem; font-weight: 800; padding: .12rem .45rem; margin-bottom: .3rem; border: 2px solid var(--line); color: var(--on-fill); }
+.tag.yes { background: var(--key-fill); } .tag.no { background: var(--pub-fill); } .tag.part { background: var(--step-fill); }
+
+.relations { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.3rem; }
+.rel { background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); padding: 1rem 1.1rem; }
+.rel:nth-child(2) { transform: translateY(1rem); }
+.rel .eqn { font-family: var(--math); font-style: italic; font-size: 1.2rem; margin: 0 0 .6rem; padding-bottom: .5rem; border-bottom: 2px dashed var(--line); }
+.rel .nums { display: flex; gap: .7rem; margin-bottom: .7rem; }
+.rel .nums div { flex: 1; padding: .45rem .55rem; border: 2px solid var(--line); color: var(--on-fill); }
+.rel .nums .e { background: var(--pub-fill); }
+.rel .nums .h { background: var(--hash-fill); }
+.rel .nums div b { display: block; font-family: var(--mono); font-weight: 800; font-size: 1.45rem; letter-spacing: -.04em; }
+.rel .nums div span { font-family: var(--mono); font-size: .6rem; }
+.rel p { font-size: .84rem; color: var(--muted); margin: 0; }
+.run-label { font-family: var(--mono); font-size: .72rem; font-weight: 600; margin: 0 0 .8rem; padding: .45rem .7rem; background: var(--key-fill); color: var(--on-fill); border: 2px solid var(--line); display: inline-block; }
+
+.callout { position: relative; max-width: 66ch; margin: 1.6rem 0; padding: .9rem 1.1rem; background: var(--step-fill); color: var(--on-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh); transform: rotate(-.6deg); }
+.callout strong { font-family: var(--mono); font-size: .82rem; }
+
+/* section 5 output: a block explorer */
+.out-grid { display: grid; margin-top: 1.2rem; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-lg); }
+.out-row { display: grid; grid-template-columns: 11rem 1fr; gap: 1rem; align-items: baseline; padding: .65rem 1rem; border-bottom: 1.5px solid var(--rule); }
+.out-row span:first-child { font-family: var(--mono); font-size: .68rem; font-weight: 700; color: var(--muted); }
+.out-row code { font-family: var(--mono); word-break: break-all; font-size: .76rem; }
+.out-row.addr { background: var(--pub-fill); color: var(--on-fill); border-block: var(--bw) solid var(--line); }
+.out-row.addr span:first-child { color: var(--on-fill); }
+.out-row.addr code { font-weight: 800; font-size: 1.05rem; }
+.out-grid > p.small { padding: .7rem 1rem; margin: 0; font-size: .82rem; }
+
+footer { margin-top: 6rem; padding-block: 1.6rem 3rem; border-top: var(--bw) solid var(--line); font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+footer strong { color: var(--ink); background: var(--key-fill); color: var(--on-fill); padding: 0 .3rem; }
+
+
+/* =====================================================================
+   CALM VERSION: same layout, neutral surfaces, nothing tilted.
+   Colour is kept only for meaning: teal = private, raspberry = public,
+   amber = the current step, indigo = Keccak-256.
+   ===================================================================== */
+body { background-image: radial-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1.4px); }
+.hero h1 .h-priv, .hero h1 .h-pub, .window, .sticker, .ticker, .task-num, section.task:nth-of-type(2n) .task-num,
+.sum-sticker, .result .lbl, .callout, .rel:nth-child(2) { transform: none; }
+::-webkit-scrollbar-thumb { background: var(--rule); border-width: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+a:hover { background: none; color: var(--key); }
+
+/* top bar */
+.brand-mark { background: var(--ink); color: var(--paper); box-shadow: none; }
+.nav a.on { background: var(--ink); color: var(--paper); border-color: var(--ink); box-shadow: none; }
+.nav a.on .n { color: var(--paper); }
+.theme-btn { background: var(--sheet); color: var(--ink); box-shadow: var(--sh-sm); }
+
+/* hero */
+.pill { box-shadow: none; }
+.pill-key { background: var(--sheet); color: var(--key); }
+.hero h1 .h-priv, .hero h1 .h-pub { background: var(--sheet); color: var(--ink); box-shadow: var(--sh); padding-left: .3em; }
+.hero h1 .h-priv { border-left: .14em solid var(--key); }
+.hero h1 .h-pub { border-left: .14em solid var(--pub); }
+.equation .tok { box-shadow: none; }
+.equation .tk { background: var(--key-fill); color: var(--key); }
+.equation .tq { background: var(--pub-fill); color: var(--pub); }
+.window-bar { background: var(--paper-2); color: var(--ink); }
+.wb-dots i, .wb-dots i:nth-child(1), .wb-dots i:nth-child(2) { background: var(--sheet); border-color: var(--muted); }
+.sticker { background: var(--sheet); color: var(--ink); box-shadow: var(--sh); }
+.sticker-q { border-left: 6px solid var(--pub); } .sticker-q small { color: var(--pub); opacity: 1; }
+.sticker-k { border-left: 6px solid var(--key); } .sticker-k small { color: var(--key); opacity: 1; }
+.replay { background: var(--sheet); color: var(--ink); box-shadow: none; }
+.ticker { background: var(--paper-2); color: var(--ink); border-color: var(--rule); }
+.ticker span::after { color: var(--muted); }
+
+/* summary */
+.summary-box { box-shadow: var(--sh-lg); }
+.sum-sticker { background: var(--ink); color: var(--paper); box-shadow: none; }
+
+/* sticky sidebar number tiles */
+.task-num, section.task:nth-of-type(2n) .task-num, section.task#explore .task-num, section.task#real .task-num {
+  background: var(--sheet); color: var(--ink); box-shadow: var(--sh);
+}
+.subnav { border-top-style: solid; border-top-color: var(--rule); }
+
+/* controls */
+.controls { background: var(--paper-2); border: var(--bw) solid var(--rule); }
+select { background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%), linear-gradient(var(--paper-2), var(--paper-2)); }
+select:focus, input[type=number]:focus, input[type=text]:focus { box-shadow: 4px 4px 0 var(--key); }
+input[type=range]::-webkit-slider-thumb { background: var(--ink); box-shadow: none; }
+input[type=range]::-moz-range-thumb { background: var(--ink); }
+button.btn { background: var(--ink); color: var(--paper); box-shadow: var(--sh-sm); }
+button.btn.ghost { background: var(--sheet); color: var(--ink); }
+button.btn:hover:not(:disabled) { box-shadow: 5px 5px 0 var(--shadow-c); }
+
+/* results and numbers */
+.result { background: var(--sheet); color: var(--ink); box-shadow: var(--sh-lg); border-left: 10px solid var(--pub); }
+.result .lbl { background: var(--pub-fill); color: var(--pub); border-color: var(--pub); }
+.result .note .m { color: var(--ink); }
+.fact::before, .fact:nth-child(2n)::before { background: var(--paper-2); border-bottom-color: var(--rule); }
+.fact.warn::before { background: var(--step-fill); }
+.chip:hover { background: var(--paper-2); color: var(--ink); }
+.chip.g { background: var(--key-fill); color: var(--key); border-color: var(--key); box-shadow: none; }
+.chip.q { background: var(--pub-fill); color: var(--pub); border-color: var(--pub); box-shadow: none; }
+
+/* tables */
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--ink) 3.5%, var(--sheet)); }
+tbody tr:hover td { background: var(--paper-2); color: var(--ink); }
+tr.final td, tr.final:hover td { background: var(--pub-fill) !important; color: var(--pub); }
+.bits span.one { background: var(--key-fill); color: var(--key); border-color: var(--key); box-shadow: none; }
+.matrix td:hover { background-color: var(--sheet) !important; color: var(--ink); box-shadow: var(--sh-sm); }
+.score tr.group td, .score tr.group:hover td { background: var(--paper-2) !important; color: var(--ink); }
+.score td.apart.y::before { background: var(--ink); border-color: var(--ink); }
+tbody tr:hover td.ec { color: var(--pub); } tbody tr:hover td.hs { color: var(--hash); }
+
+/* visualiser */
+.phase-list span.on { background: var(--ink); color: var(--paper); }
+.calc .hl { background: var(--step-fill); color: var(--ink); box-shadow: none; }
+.oplist { background: #1F2120; box-shadow: var(--sh); }
+.oplist div.cur { background: #F2F2EF; color: #1F2120; }
+.oplist div.cur::before { color: #1F7A6C; }
+
+/* charts and cards */
+.chart h4, .chart:nth-child(4n+2) h4, .chart:nth-child(4n+3) h4 { background: var(--paper-2); }
+.chart .verdict { border-style: solid; border-color: var(--rule); }
+.real-box svg { box-shadow: var(--sh); }
+.rel .nums div { border-color: var(--rule); }
+.rel .nums .e { background: var(--pub-fill); color: var(--pub); }
+.rel .nums .h { background: var(--hash-fill); color: var(--hash); }
+.run-label { background: var(--key-fill); color: var(--key); border-color: var(--key); }
+.tag { border-width: 1.5px; }
+.tag.yes { background: var(--key-fill); color: var(--key); border-color: var(--key); }
+.tag.no { background: var(--pub-fill); color: var(--pub); border-color: var(--pub); }
+.tag.part { background: var(--step-fill); color: var(--step-ink); border-color: var(--step-ink); }
+.callout { background: var(--sheet); color: var(--ink); border-left: 8px solid var(--step); box-shadow: var(--sh); }
+.out-row.addr { background: var(--pub-fill); color: var(--pub); border-left: 8px solid var(--pub); }
+.out-row.addr span:first-child { color: var(--pub); }
+footer strong { background: none; color: var(--ink); padding: 0; }
+
+
+/* =====================================================================
+   HOMEWORK 2 COMPONENTS, in the same calm design system as Homework 1.
+   One colour per kind of operation (the script reads these as #rrggbb).
+   ===================================================================== */
+:root {
+  --c-gen: #8F6008; --c-der: #1F7A6C; --c-pkc: #B33A5C; --c-hash: #5B52C4; --c-sum: #2A6399; --c-enc: #686E68;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --c-gen: #E9C066; --c-der: #5FD0BC; --c-pkc: #F291AD; --c-hash: #AFA9F7; --c-sum: #79B4E8; --c-enc: #A3ACB5; }
+}
+:root[data-theme="dark"] { --c-gen: #E9C066; --c-der: #5FD0BC; --c-pkc: #F291AD; --c-hash: #AFA9F7; --c-sum: #79B4E8; --c-enc: #A3ACB5; }
+
+.brand-mark { font-family: var(--mono); font-size: .95rem; font-weight: 800; }
+
+/* kind-of-operation chips */
+.cat { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: .6rem; font-weight: 700; padding: .2rem .5rem; border: 1.5px solid currentColor; background: var(--sheet); white-space: nowrap; }
+.cat::before { content: ""; width: .5rem; height: .5rem; background: currentColor; }
+.cat.gen { color: var(--c-gen); } .cat.der { color: var(--c-der); } .cat.pkc { color: var(--c-pkc); }
+.cat.hash { color: var(--c-hash); } .cat.sum { color: var(--c-sum); } .cat.enc { color: var(--c-enc); }
+.cats { display: flex; flex-wrap: wrap; gap: .35rem; }
+.cat-legend { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: 1.4rem; }
+
+/* hero: the pipeline inside the window */
+.hrail { display: flex; flex-direction: column; padding: 1.1rem 1.1rem 1.2rem; background: var(--sheet); }
+.hnode { background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm); padding: .5rem .75rem; opacity: 0; transform: translateY(4px); transition: opacity .45s, transform .45s; }
+.hnode.on { opacity: 1; transform: none; }
+.hnode b { display: block; font-family: var(--mono); font-size: .58rem; font-weight: 600; color: var(--muted); }
+.hnode span { display: block; font-family: var(--mono); font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hnode.final { border-left: 8px solid var(--pub); }
+.hnode.final span { color: var(--pub); font-weight: 800; white-space: normal; word-break: break-all; }
+.harrow { display: flex; align-items: center; margin-left: 1.3rem; padding: .32rem 0 .32rem .9rem; border-left: 3px solid var(--rule); opacity: 0; transition: opacity .45s; }
+.harrow.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .hnode, .harrow { transition: none; } }
+.hero-visual .window { max-width: 520px; margin-left: auto; }
+
+/* the lab */
+.lab-in textarea {
+  font-family: var(--mono); font-size: .84rem; line-height: 1.6; width: 100%; min-height: 4.8rem; resize: vertical; color: var(--ink);
+  background: var(--sheet); border: var(--bw) solid var(--line); border-radius: 0; padding: .7rem .85rem; box-shadow: var(--sh-sm);
+}
+.lab-in textarea:focus { outline: none; box-shadow: 4px 4px 0 var(--key); }
+.lab-in > .field { width: 100%; }
+.lab-in .controls { margin-top: 1rem; }
+.lab-in .controls.quick { background: transparent; border: 0; padding: 0; margin-top: 0; }
+.lab-in .controls input[type=text] { min-width: 14rem; }
+.hero h1 { font-size: clamp(2.6rem, 5.6vw, 5.4rem); }
+.lab-msg { font-family: var(--mono); font-size: .7rem; min-height: 1.4em; margin: .6rem 0 0; overflow-wrap: anywhere; }
+.lab-msg.err { color: var(--pub); font-weight: 700; }
+.rail { margin-top: 1.6rem; }
+.stage { background: var(--sheet); border: var(--bw) solid var(--line); border-left: 8px solid var(--cc, var(--line)); box-shadow: var(--sh); padding: 1rem 1.2rem; }
+.stage + .stage { margin-top: .9rem; }
+.stage-h { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .8rem; margin-bottom: .55rem; }
+.stage-h h3 { margin: 0; font-family: var(--display); font-size: 1.3rem; }
+.stage .val { font-family: var(--mono); font-size: .72rem; line-height: 1.75; word-break: break-all; }
+.stage .val .dim { color: var(--muted); }
+.stage .val .hl { background: var(--hash-fill); color: var(--hash); font-weight: 800; }
+.stage .note { font-size: .86rem; color: var(--muted); margin: .55rem 0 0; }
+.stage.final { border-left-color: var(--pub); box-shadow: var(--sh-lg); }
+.step-arrow { position: relative; margin: 0 0 0 1.9rem; padding: .85rem 0 .9rem 1.4rem; border-left: 3px solid var(--cc, var(--rule)); }
+.step-arrow::after { content: ""; position: absolute; left: -8px; bottom: -2px; border: 6.5px solid transparent; border-top: 8px solid var(--cc, var(--rule)); border-bottom: 0; }
+.step-arrow .op { font-family: var(--mono); font-weight: 700; font-size: .76rem; }
+.step-arrow .how { font-size: .88rem; color: var(--muted); margin-top: .2rem; max-width: 70ch; }
+.step-arrow .cats { margin-top: .45rem; }
+.wordgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.4rem, 1fr)); gap: .45rem; }
+.word { border: 1.5px solid var(--rule); background: var(--paper-2); padding: .35rem .55rem; }
+.word .i { font-family: var(--mono); font-size: .56rem; color: var(--muted); }
+.word .w { font-family: var(--mono); font-weight: 800; font-size: .86rem; }
+.word .b { font-family: var(--mono); font-size: .6rem; letter-spacing: .02em; color: var(--muted); word-break: break-all; }
+.word .b .cs { color: var(--c-sum); font-weight: 800; }
+.pathtbl td.k { word-break: break-all; color: var(--muted); }
+.cs-grid { display: grid; grid-template-columns: repeat(20, minmax(0, 1fr)); gap: 3px; margin-top: .7rem; }
+.cs-cell { text-align: center; font-family: var(--mono); font-weight: 800; font-size: .78rem; padding: .25rem 0; background: var(--paper-2); border: 1.5px solid transparent; }
+.cs-cell small { display: block; font-size: .54rem; font-weight: 500; color: var(--muted); }
+.cs-cell.up { background: var(--c-sum); color: var(--sheet); }
+.cs-cell.up small { color: var(--sheet); opacity: .85; }
+.cs-cell.low { border-color: var(--c-sum); }
+.bigaddr { font-family: var(--mono); font-size: clamp(.9rem, 2vw, 1.25rem); font-weight: 800; color: var(--pub); word-break: break-all; }
+.wallet h3 { margin-top: 0; }
+.wallet ol { padding-left: 1.3rem; margin: .7rem 0 0; }
+.wallet li { margin-bottom: .45rem; }
+
+/* building blocks */
+.blocks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.3rem; }
+.block { background: var(--sheet); border: var(--bw) solid var(--line); border-top: 8px solid var(--cc); box-shadow: var(--sh); padding: 1rem 1.15rem; display: flex; flex-direction: column; gap: .55rem; }
+.block h3 { margin: 0; font-family: var(--display); font-size: 1.65rem; }
+.block .yr { font-family: var(--mono); font-size: .64rem; color: var(--muted); }
+.block p { margin: 0; font-size: .92rem; }
+.block .io { font-family: var(--mono); font-size: .66rem; color: var(--muted); border-top: 1.5px dashed var(--rule); padding-top: .55rem; margin-top: auto; }
+
+/* tables with sentences in them */
+.kinds td, .why td, .stat-sum td { font-family: var(--text); font-size: .86rem; }
+.kinds td:first-child { white-space: nowrap; }
+.stat-sum td:first-child { font-family: var(--display); font-size: 1rem; white-space: nowrap; }
+.stat-sum td.live { font-family: var(--mono); font-size: .7rem; font-weight: 600; color: var(--key); }
+.same-tool { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+.same-tool > div { background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm); padding: .85rem 1rem; font-size: .9rem; }
+.same-tool b { display: block; font-family: var(--display); font-weight: 400; font-size: 1.1rem; margin-bottom: .35rem; }
+
+/* statistics */
+.stat-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: .9rem; margin: .5rem 0 1rem; }
+.stat-facts .fact b { font-size: 1.4rem; }
+.lastwords { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .6rem; }
+.lastwords span { font-family: var(--mono); font-size: .66rem; border: 1.5px solid var(--rule); padding: .1rem .4rem; background: var(--paper-2); }
+.chart canvas.tall { height: 300px; }
+.chart-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; border-bottom: var(--bw) solid var(--line); background: var(--paper-2); padding-right: .8rem; }
+.chart-top h4 { border-bottom: 0 !important; }
+.toggle { display: inline-flex; border: var(--bw) solid var(--line); background: var(--sheet); }
+.toggle button { font-family: var(--mono); font-size: .66rem; font-weight: 600; border: 0; background: transparent; color: var(--muted); padding: .35rem .7rem; cursor: pointer; }
+.toggle button + button { border-left: var(--bw) solid var(--line); }
+.toggle button.on { background: var(--ink); color: var(--paper); }
+.rng td.ok { color: var(--key); font-weight: 800; }
+.rng td.bad { color: var(--pub); font-weight: 800; }
+
+/* history */
+.tl-strip { position: relative; height: 160px; margin: 1.6rem 0 .4rem; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); }
+.tl-axis { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--line); }
+.tl-break { position: absolute; top: calc(50% - 10px); width: 16px; height: 20px; transform: translateX(-50%); background: var(--sheet); }
+.tl-break::before, .tl-break::after { content: ""; position: absolute; top: 0; height: 20px; width: 2px; background: var(--line); transform: skewX(-20deg); }
+.tl-break::before { left: 3px; } .tl-break::after { right: 3px; }
+.tl-ev { position: absolute; transform: translateX(-50%); text-align: center; font-family: var(--mono); font-size: .58rem; line-height: 1.25; width: 5.6rem; }
+.tl-ev i { position: absolute; left: 50%; width: 11px; height: 11px; transform: translate(-50%, -50%); top: 80px; border: 2px solid var(--line); }
+.tl-ev.hw i { background: var(--ink); }
+.tl-ev.ctx i { background: var(--sheet); }
+.tl-ev b { display: block; font-size: .66rem; font-weight: 800; }
+.tl-ev.ctx { color: var(--muted); }
+.tl-cap { font-family: var(--mono); font-size: .64rem; color: var(--muted); margin: .6rem 0 0; }
+.tl-list { display: grid; gap: .55rem; margin-top: 1.2rem; }
+.tl-item { display: grid; grid-template-columns: 4.6rem 1fr; gap: 1rem; align-items: baseline; padding: .6rem .9rem; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm); }
+.tl-item .y { font-family: var(--mono); font-weight: 800; font-size: 1rem; }
+.tl-item.ctx { background: transparent; border-style: dashed; box-shadow: none; }
+.tl-item.ctx .y { color: var(--muted); }
+.tl-item p { margin: 0; font-size: .92rem; }
+.tl-item .tag { margin-left: .45rem; }
+.hashdemo { margin-top: 1.4rem; }
+.hashdemo .row { display: grid; grid-template-columns: 7.5rem 1fr; gap: .9rem; padding: .5rem 0; border-bottom: 1.5px solid var(--rule); align-items: baseline; }
+.hashdemo .row > span:first-child { font-family: var(--mono); font-weight: 700; font-size: .7rem; }
+.hashdemo code { font-family: var(--mono); word-break: break-all; font-size: .72rem; }
+.pad { display: flex; flex-wrap: wrap; gap: 3px; margin-top: .35rem; }
+.pad span { font-family: var(--mono); font-size: .62rem; padding: .1rem .3rem; background: var(--paper-2); border: 1.5px solid var(--rule); }
+.pad span.d { background: var(--c-hash); color: var(--sheet); border-color: var(--c-hash); font-weight: 800; }
+.pad span.e { background: var(--key); color: var(--sheet); border-color: var(--key); font-weight: 800; }
+
+/* why several */
+.why td, .why th { text-align: center; }
+.why td:first-child, .why th:first-child { text-align: left; }
+.why td.y::before { content: ""; display: inline-block; width: .8rem; height: .8rem; background: var(--key); border: 1.5px solid var(--line); }
+
+@media (max-width: 900px) {
+  .blocks, .same-tool { grid-template-columns: 1fr; }
+  .tl-strip { display: none; }
+  .tl-cap { display: none; }
+  .cs-grid { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+  .hashdemo .row { grid-template-columns: 1fr; gap: .15rem; }
+  .hero-visual .window { margin-left: 0; }
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .wb-meta { display: none; }
+  .window-bar { min-width: 0; }
+  .wb-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+
+
+/* link back to the course home page */
+.home-link { flex: none; font-family: var(--mono); font-size: .7rem; font-weight: 700; color: var(--ink); text-decoration: none; padding: .38rem .65rem; background: var(--sheet); border: 1.5px solid var(--line); box-shadow: var(--sh-sm); white-space: nowrap; }
+.home-link:hover { color: var(--key); background: var(--sheet); }
+
+/* ---------- print ---------- */
+@media print {
+  .bar, .controls, .subnav, .theme-btn, .replay, button, .ticker, .sticker { display: none !important; }
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  section.task { display: block; padding-block: 1.5rem .5rem; }
+  .task-head { position: static; }
+  .chart, .rel, .result, table, .viz, .summary-box { break-inside: avoid; }
+  .tbl-box { max-height: none !important; overflow: visible !important; }
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1080px) {
+  section.task { grid-template-columns: 1fr; gap: 1.6rem; padding-block: 4.5rem 1rem; }
+  .task-head { position: static; }
+  .task-num { width: 4.4rem; height: 4.4rem; font-size: 2.8rem; }
+  .subnav { flex-direction: row; flex-wrap: wrap; }
+}
+@media (max-width: 900px) {
+  .hero-grid, .viz, .two, .real-box { grid-template-columns: 1fr; }
+  .charts, .relations { grid-template-columns: 1fr; }
+  .rel:nth-child(2) { transform: none; }
+  .hero-visual { max-width: 460px; padding-right: 1rem; }
+  .sticker-k { left: auto; right: -.4rem; top: -.4rem; }
+  .brand-txt small { display: none; }
+  .out-row { grid-template-columns: 1fr; gap: .2rem; }
+}
+@media (max-width: 640px) {
+  .brand-txt { display: none; }
+  .nav { margin-left: 0; }
+  .hero h1 .h-pub { margin-left: 0; margin-top: .1em; }
+  .summary-box { padding: 1.8rem 1.2rem 1rem; box-shadow: 6px 6px 0 var(--pub-fill), 6px 6px 0 2.5px var(--line); }
+  .controls { padding: .9rem; }
+  .field { max-width: 100%; }
+  select, input[type=number], input[type=text] { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true">0x</span><span class="brand-txt">Seed to address<small>BIP-39 → EIP-55 in the browser</small></span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#pipeline"><span class="n">1</span>Pipeline</a>
+      <a href="#blocks"><span class="n">2</span>Blocks</a>
+      <a href="#kinds"><span class="n">3</span>Kinds</a>
+      <a href="#stats"><span class="n">4</span>Statistics</a>
+      <a href="#history"><span class="n">5</span>History</a>
+      <a href="#why"><span class="n">6</span>Why several</a>
+    </nav>
+    <a class="home-link" href="index.html">All homework</a>
+    <button class="theme-btn" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme">◐</button>
+  </div>
+</header>
+
+<main id="top">
+<!-- ================= HERO ================= -->
+<section class="hero wrap">
+  <div class="hero-grid">
+    <div class="hero-copy">
+      <div class="hero-tags"><span class="pill">Homework 2</span><span class="pill">Riccardo Santoni</span><span class="pill">Student ID 2007183</span><span class="pill pill-key">BIP-39 to EIP-55</span></div>
+      <h1><span class="h-priv">Twelve words</span><span class="arrow">become, step by step, an</span><span class="h-pub">Ethereum address</span></h1>
+      <p class="hero-lede">A wallet backup is just a list of words, yet it controls every address the wallet will ever show. This page rebuilds the whole chain in your browser, with the same standards wallets use: BIP-39, BIP-32, BIP-44, secp256k1, Keccak-256 and EIP-55.</p>
+      <div class="cat-legend" aria-label="Colour legend: kinds of operation">
+        <span class="cat gen">key generation</span><span class="cat der">key derivation</span><span class="cat pkc">public-key crypto</span>
+        <span class="cat hash">hashing</span><span class="cat sum">checksum</span><span class="cat enc">encoding</span>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="window">
+        <div class="window-bar"><span class="wb-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wb-title">wallet_pipeline.log</span><span class="wb-meta">m/44'/60'/0'/0/0</span></div>
+        <div class="hrail" id="heroRail" aria-label="The test phrase going through the pipeline"></div>
+      </div>
+      <div class="sticker sticker-k" aria-hidden="true"><small>public test phrase</small>test … junk</div>
+    </div>
+  </div>
+</section>
+
+<div class="ticker" aria-hidden="true"><div class="ticker-track">
+  <span>12 words = 128 bits + 4 checksum bits</span><span>BIP-32 (2012)</span><span>BIP-39 (2013)</span><span>BIP-44 (2014)</span><span>m/44'/60'/0'/0/0</span><span>2048 PBKDF2 rounds</span><span>secp256k1</span><span>Keccak-256 ≠ SHA3-256</span><span>EIP-55 (2016)</span><span>about 15 check bits</span>
+  <span>12 words = 128 bits + 4 checksum bits</span><span>BIP-32 (2012)</span><span>BIP-39 (2013)</span><span>BIP-44 (2014)</span><span>m/44'/60'/0'/0/0</span><span>2048 PBKDF2 rounds</span><span>secp256k1</span><span>Keccak-256 ≠ SHA3-256</span><span>EIP-55 (2016)</span><span>about 15 check bits</span>
+</div></div>
+
+<!-- ================= SUMMARY ================= -->
+<section class="wrap" id="summary" aria-labelledby="summary-title">
+  <div class="summary-box">
+    <span class="sum-sticker" aria-hidden="true">tl;dr</span>
+    <h2 id="summary-title">Summary</h2>
+    <div class="summary-text">
+      <p>This page rebuilds the pipeline an Ethereum wallet uses to turn a mnemonic phrase into an address. BIP-39 turns 128 random bits into twelve words and stretches them into a 512-bit seed; BIP-32 derives a tree of keys from the seed, and the BIP-44 path <span class="m">m/44'/60'/0'/0/i</span> picks the Ethereum ones; secp256k1 gives the public key; Keccak-256 shortens it to a 20-byte address; and EIP-55 hides a checksum in the letter case. For the public test phrase "test test … junk" the page produces 0xf39F…2266, the same first address a wallet such as MetaMask shows.</p>
+      <p>Each step is a different kind of operation: key generation, key derivation, public-key cryptography, hashing, checksum or encoding. Only the first step is random; everything after it is deterministic. The statistics confirm what each step promises: changing one bit of the original randomness changes about half of the bits of the seed, the private key and the address; random word lists pass the BIP-39 checksum about once in 16 tries; a one-character typo slips past EIP-55 only about 2–3 times in 10,000; and although the address is 160 bits long, it never carries more than the 128 bits of entropy in the twelve words.</p>
+      <p>What surprised me most: a wallet's whole security rests on that single random number. The 2048 PBKDF2 rounds, the hardened derivation and the hashes each protect against a specific attack, but none of them adds a single bit of entropy.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1. PIPELINE ================= -->
+<section class="task wrap" id="pipeline">
+  <div class="task-head">
+    <div class="task-num" aria-hidden="true">1</div>
+    <div>
+      <h2>Check the pipeline, step by step</h2>
+      <p class="lede">Type or generate a phrase and follow it from words to a checksummed address. Every value is computed live with the real algorithms; the coloured tag on each arrow says what kind of operation that step is.</p>
+    </div>
+  </div>
+
+  <div class="task-body">
+  <div class="callout"><strong>Never type a real recovery phrase into a website</strong>, including this one. Use the public test phrases or a newly generated demo phrase, and never send funds to the addresses shown here.</div>
+
+  <div class="lab-in">
+    <div class="field"><label for="mn">Mnemonic phrase</label><textarea id="mn" spellcheck="false" autocomplete="off">test test test test test test test test test test test junk</textarea></div>
+    <div class="controls" style="margin-top:.8rem">
+      <div class="field"><label for="pp">Passphrase (optional, "25th word")</label><input id="pp" type="text" value="" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label for="path">Derivation path</label><input id="path" type="text" value="m/44'/60'/0'/0/0" spellcheck="false" style="min-width:12rem"></div>
+      <button class="btn" id="labRun">Run the pipeline</button>
+    </div>
+    <div class="controls quick">
+      <button class="btn ghost" id="labTest">Test phrase "test … junk"</button>
+      <button class="btn ghost" id="labAbandon">Test phrase "abandon … about"</button>
+      <button class="btn ghost" id="labNew12">New random phrase, 12 words</button>
+      <button class="btn ghost" id="labNew24">24 words</button>
+    </div>
+    <p class="lab-msg" id="labMsg" role="status"></p>
+  </div>
+  <div class="rail" id="rail"></div>
+
+  <div class="sheet wallet" style="margin-top:1.6rem">
+    <h3 style="margin-top:0">Check it in a real wallet</h3>
+    <p class="small" style="margin:0">The homework suggests trying wallet software such as MetaMask, Rabby, Exodus or Rainbow. A safe way to do it:</p>
+    <ol>
+      <li>Use a separate browser profile (or a spare device) with no real funds in it.</li>
+      <li>Install the wallet from its official website and choose "import an existing wallet" (the wording differs between wallets). Paste the public test phrase <em>test test test test test test test test test test test junk</em>.</li>
+      <li>The first account should be <strong>0xf39F…2266</strong>, the address this page computes for <span class="m">m/44'/60'/0'/0/0</span>. Add a second and third account in the wallet and compare them with the paths <span class="m">…/0/1</span> and <span class="m">…/0/2</span> here.</li>
+      <li>Try the same phrase in a second wallet. Wallets that follow BIP-44 for Ethereum show the same addresses; if one shows different ones, it uses a different path. That difference shows why the derivation path matters. Most browser wallets do not ask for a BIP-39 passphrase, so leave it empty when comparing.</li>
+      <li>Remove the test wallet afterwards. The phrase is public, so anyone can move funds sent to these addresses.</li>
+    </ol>
+  </div>
+  </div>
+</section>
+
+<!-- ================= 2. BUILDING BLOCKS ================= -->
+<section class="task wrap" id="blocks">
+  <div class="task-head">
+    <div class="task-num" aria-hidden="true">2</div>
+    <div>
+      <h2>The six building blocks</h2>
+      <p class="lede">What each standard or primitive does, what goes in and what comes out, and why the pipeline needs it.</p>
+    </div>
+  </div>
+
+  <div class="task-body">
+  <div class="blocks">
+    <article class="block" style="--cc:var(--c-enc)">
+      <h3>BIP-39</h3><span class="yr">Mnemonic code, 2013</span>
+      <div class="cats"><span class="cat gen">key generation</span><span class="cat enc">encoding</span><span class="cat sum">checksum</span><span class="cat der">key derivation</span></div>
+      <p>Takes 128–256 random bits, appends a SHA-256 checksum of 4–8 bits, and writes the result as 12–24 words from a fixed list of 2048 (11 bits per word). The words are then stretched into a 512-bit seed with PBKDF2-HMAC-SHA512: 2048 rounds, salt "mnemonic" plus an optional passphrase.</p>
+      <p class="io">Random bits → words a person can write down → 512-bit seed.</p>
+    </article>
+    <article class="block" style="--cc:var(--c-der)">
+      <h3>BIP-32</h3><span class="yr">Hierarchical deterministic wallets, 2012</span>
+      <div class="cats"><span class="cat der">key derivation</span></div>
+      <p>HMAC-SHA512 with the key "Bitcoin seed" turns the seed into a master private key and a chain code. Each child key is one more HMAC-SHA512 of its parent, so a single seed defines a whole tree of keys. "Hardened" children (marked ') mix in the private key, so a leaked child key cannot expose its parent.</p>
+      <p class="io">One seed → a practically unlimited tree of private keys (about 4 billion children per key, up to 255 levels).</p>
+    </article>
+    <article class="block" style="--cc:var(--c-der)">
+      <h3>BIP-44</h3><span class="yr">Multi-account paths, 2014</span>
+      <div class="cats"><span class="cat der">key derivation</span></div>
+      <p>A naming convention for the BIP-32 tree: <span class="m">m / purpose' / coin type' / account' / change / index</span>. Ethereum uses <span class="m">m/44'/60'/0'/0/i</span>, where 60 is Ethereum's registered coin type. Same phrase plus same path gives the same addresses in every compatible wallet.</p>
+      <p class="io">Seed + path → the private key for account <span class="m">i</span>.</p>
+    </article>
+    <article class="block" style="--cc:var(--c-pkc)">
+      <h3>secp256k1</h3><span class="yr">Defined in SEC 2, 2000</span>
+      <div class="cats"><span class="cat pkc">public-key crypto</span></div>
+      <p>The elliptic curve <span class="m">y² = x³ + 7</span> over a 256-bit prime field. The public key is <span class="m">Q = kG</span>: easy to compute, infeasible to reverse (the discrete logarithm problem from Homework 1). It is what lets the owner sign transactions (ECDSA) without revealing <span class="m">k</span>.</p>
+      <p class="io">256-bit private key → 512-bit public key <span class="m">(x, y)</span>.</p>
+    </article>
+    <article class="block" style="--cc:var(--c-hash)">
+      <h3>Keccak-256</h3><span class="yr">SHA-3 winner 2012, in Ethereum since 2015</span>
+      <div class="cats"><span class="cat hash">hashing</span></div>
+      <p>A sponge-based hash with a 256-bit output. Ethereum hashes the 64-byte public key and keeps the last 20 bytes as the address. It uses the original Keccak padding, so its output differs from the standardized SHA3-256 (see section 5).</p>
+      <p class="io">64-byte public key → 32-byte hash → 20-byte address.</p>
+    </article>
+    <article class="block" style="--cc:var(--c-sum)">
+      <h3>EIP-55</h3><span class="yr">Mixed-case checksum, 2016</span>
+      <div class="cats"><span class="cat sum">checksum</span><span class="cat enc">encoding</span></div>
+      <p>Hashes the lowercase hex address with Keccak-256 and writes each letter a–f in uppercase when the matching hex digit of that hash is 8 or more. This gives about 15 check bits without making the address longer, and software that ignores case still reads it.</p>
+      <p class="io">Lowercase address → the same address with a checksum in its capital letters.</p>
+    </article>
+  </div>
+  </div>
+</section>
+
+<!-- ================= 3. KINDS ================= -->
+<section class="task wrap" id="kinds">
+  <div class="task-head">
+    <div class="task-num" aria-hidden="true">3</div>
+    <div>
+      <h2>What kind of step is each one?</h2>
+      <p class="lede">The homework asks to separate key generation and key derivation, public-key cryptography, hashing, checksums and encoding. They answer different questions: is there a secret, can the step be undone, and what is it protecting against?</p>
+    </div>
+  </div>
+
+  <div class="task-body">
+  <div class="tbl-box scroll" style="max-height:none">
+    <table class="kinds">
+      <thead><tr><th>Kind</th><th>What it does</th><th>Secret?</th><th>Reversible?</th><th>In this pipeline</th><th>Statistical signature</th></tr></thead>
+      <tbody>
+        <tr><td><span class="cat gen">Key generation</span></td><td>Creates a new secret from fresh randomness.</td><td>Produces one</td><td>Nothing to reverse</td><td>128 or 256 bits from a cryptographic random generator. The only random step.</td><td>Must be uniform and, above all, unpredictable: any bias or pattern directly removes security.</td></tr>
+        <tr><td><span class="cat der">Key derivation</span></td><td>Computes new secrets from an existing one, deterministically.</td><td>Secret in, secret out</td><td>No, one-way</td><td>PBKDF2 (words → seed), HMAC-SHA512 at every BIP-32 level along the BIP-44 path.</td><td>Outputs look uniform and unrelated, but carry no more entropy than the input.</td></tr>
+        <tr><td><span class="cat pkc">Public-key crypto</span></td><td>Links a private key to a public key; enables signatures.</td><td>Private key secret, public key shared</td><td>No (discrete logarithm)</td><td>secp256k1: <span class="m">Q = kG</span>.</td><td>Structured: algebraic relations between outputs (Homework 1).</td></tr>
+        <tr><td><span class="cat hash">Hashing</span></td><td>Maps any data to a short fixed-size digest.</td><td>None, anyone can compute it</td><td>No, one-way</td><td>Keccak-256 of the public key → address.</td><td>Uniform bits, avalanche, no usable relations.</td></tr>
+        <tr><td><span class="cat sum">Checksum</span></td><td>Adds redundancy so that accidental errors are detected.</td><td>None, so it does not stop an attacker</td><td>It can simply be dropped</td><td>4 bits in a 12-word phrase; the letter case in EIP-55.</td><td>A known probability of missing an error: 1/16, or about 1/4000 for an EIP-55 typo.</td></tr>
+        <tr><td><span class="cat enc">Encoding</span></td><td>Changes how information is written, not the information.</td><td>None</td><td>Yes, fully</td><td>Bits → words, bytes → hex, upper or lower case.</td><td>Keeps the entropy exactly: a one-to-one mapping.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Same tool, different job</h3>
+  <p class="prose small" style="margin-top:0">A step's kind comes from its purpose, not from the algorithm inside it. The pipeline reuses hash functions in three different roles:</p>
+  <div class="same-tool">
+    <div><b>SHA-256 as a checksum</b>BIP-39 keeps only the first 4–8 bits of SHA-256 of the entropy, to catch a wrong word. Nobody relies on it for secrecy.</div>
+    <div><b>SHA-512 inside key derivation</b>PBKDF2 and BIP-32 use HMAC-SHA512 to turn one secret into another. Here the hash works as a pseudorandom function keyed by a secret.</div>
+    <div><b>Keccak-256 twice</b>Once as a hash (public key → address) and once as a checksum generator (EIP-55), applied to the address it produced.</div>
+  </div>
+  </div>
+</section>
+
+<!-- ================= 4. STATISTICS ================= -->
+<section class="task wrap" id="stats">
+  <div class="task-head">
+    <div class="task-num" aria-hidden="true">4</div>
+    <div>
+      <h2>Statistical properties</h2>
+      <p class="lede">Each kind of step makes a different statistical promise. These experiments test them on thousands of phrases, keys and addresses. The seed makes every run reproducible, except the test of the browser's generator, which uses fresh randomness on purpose.</p>
+      <nav class="subnav" aria-label="Experiments">
+        <a href="#st-entropy">Entropy along the pipeline</a><a href="#st-rng">The random step</a><a href="#st-check">BIP-39 checksum</a><a href="#st-words">Word frequency</a><a href="#st-ava">Avalanche</a><a href="#st-hex">Address digits</a><a href="#st-typo">EIP-55 and typos</a><a href="#st-sum">What the statistics show</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="task-body">
+  <div class="controls">
+    <div class="field"><label for="stSeed">Seed</label><input id="stSeed" type="number" min="0" step="1" value="2026" style="min-width:6rem"></div>
+    <button class="btn" id="stRun">Run all experiments</button>
+    <span class="status" id="stStatus">The experiments start when you reach this section.</span>
+  </div>
+
+  <h3 id="st-entropy">Entropy along the pipeline</h3>
+  <p class="prose small" style="margin-top:0">Every value gets longer or shorter along the way, but only the first step creates entropy. Outline: how many bits each value has. Filled: how many of them are actually unpredictable.</p>
+  <div class="chart wide">
+    <div class="chart-top"><h4>Size vs entropy, in bits</h4>
+      <div class="toggle" role="group" aria-label="Phrase length"><button id="ent12" class="on">12 words</button><button id="ent24">24 words</button></div></div>
+    <canvas id="chEntropy" class="tall"></canvas>
+    <p class="verdict" id="vdEntropy"></p>
+  </div>
+
+  <h3 id="st-rng">The only random step: testing the generator</h3>
+  <p class="prose small" style="margin-top:0">Everything after key generation is deterministic, so the quality of a wallet rests on its random generator. Wallets in a browser use <span class="m">crypto.getRandomValues</span>. Here 1 MiB of its output goes through four classic tests, next to 1 MiB from mulberry32, the small seeded generator the other experiments on this page use so they can be repeated.</p>
+  <div class="tbl-box scroll rng" style="max-height:none"><table id="rngTable"><thead><tr><th>Test (passes if p &gt; 0.001)</th><th>What it checks</th><th>crypto.getRandomValues</th><th>mulberry32 (seeded)</th></tr></thead><tbody><tr><td colspan="4">Running…</td></tr></tbody></table></div>
+  <div class="charts">
+    <div class="chart wide">
+      <h4>How far each byte value strays from the expectation</h4>
+      <p class="look">For each byte value 0–255: its count in 1 MiB minus the expected 4,096, in standard deviations. Bars: crypto.getRandomValues. Line: mulberry32. Shaded band: ±2, where about 95% of the values should fall.</p>
+      <canvas id="chRng"></canvas>
+      <p class="verdict" id="vdRng"></p>
+    </div>
+  </div>
+
+  <h3 id="st-check">Random words and the BIP-39 checksum</h3>
+  <p class="prose small" style="margin-top:0">Pick words at random from the list. A 12-word phrase hides 4 checksum bits, so it should pass about 1 time in 16; a 24-word phrase hides 8, so about 1 in 256.</p>
+  <div class="stat-facts" id="factCheck"></div>
+  <div class="sheet">
+    <p style="margin:0" id="lastWordText">For any 11 words, exactly 128 of the 2048 possible last words make a valid phrase.</p>
+    <div class="lastwords" id="lastWords"></div>
+  </div>
+
+  <h3 id="st-words">Word frequency</h3>
+  <div class="chart wide">
+    <h4>How often each word is used</h4>
+    <p class="look">Word positions in the list, grouped in 32 blocks of 64 words, over many random phrases. Dashed: the uniform expectation.</p>
+    <canvas id="chWords"></canvas>
+    <p class="verdict" id="vdWords"></p>
+  </div>
+
+  <h3 id="st-ava">Avalanche through the pipeline</h3>
+  <div class="chart wide">
+    <h4>Flip one bit of the original randomness</h4>
+    <p class="look">For each trial, one bit of the 128-bit entropy is flipped (one or two words change). The lines show the share of bits that then differ in the seed, the private key at <span class="m">m/44'/60'/0'/0/0</span> and the address.</p>
+    <canvas id="chAva" class="tall"></canvas>
+    <p class="verdict" id="vdAva"></p>
+  </div>
+
+  <h3 id="st-hex">The digits of an address</h3>
+  <div class="charts">
+    <div class="chart">
+      <h4>Hex digits in addresses</h4>
+      <p class="look">All 40 digits of many addresses derived from the phrase in section 1, along <span class="m">m/44'/60'/0'/0/i</span>.</p>
+      <canvas id="chHex"></canvas>
+      <p class="verdict" id="vdHex"></p>
+    </div>
+    <div class="chart">
+      <h4>Letters per address</h4>
+      <p class="look">Each letter a–f carries one EIP-55 check bit. Bars: observed. Line: the binomial distribution <span class="m">B(40, 6/16)</span>.</p>
+      <canvas id="chLetters"></canvas>
+      <p class="verdict" id="vdLetters"></p>
+    </div>
+  </div>
+
+  <h3 id="st-typo">How often does EIP-55 miss a typo?</h3>
+  <p class="prose small" style="margin-top:0">Take a checksummed address, change one character to a different hex digit, and check whether the result still looks valid. It does only if the new address's checksum happens to match all its capital letters, which has probability <span class="m">2<sup>−L</sup></span> for an address with <span class="m">L</span> letters. Averaged over random addresses this is <span class="m">(13/16)⁴⁰ ≈ 0.0245%</span>, close to the 0.0247% quoted in the EIP.</p>
+  <div class="stat-facts" id="factTypo"></div>
+  <p class="small prose" id="vdTypo"></p>
+
+  <h3 id="st-sum">What the statistics show</h3>
+  <p class="prose small" style="margin-top:0">Each primitive makes a different statistical promise. The last column fills in from the experiments above.</p>
+  <div class="tbl-box scroll" style="max-height:none">
+    <table class="stat-sum">
+      <thead><tr><th>Step</th><th>The property that matters</th><th>What was measured</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Key generation</td><td>Uniform, independent and, above all, unpredictable bits.</td><td>Four classic tests on 1 MiB of browser randomness.</td><td class="live" id="ssRng">–</td></tr>
+        <tr><td>BIP-39 encoding</td><td>Every word equally likely, so the words keep the entropy.</td><td>Word frequency over 24,000 random words.</td><td class="live" id="ssWords">–</td></tr>
+        <tr><td>BIP-39 checksum</td><td>A wrong word is caught 15 times in 16.</td><td>Random word lists that still pass the checksum.</td><td class="live" id="ssCheck">–</td></tr>
+        <tr><td>Key derivation</td><td>Outputs unrelated to the input, with no entropy added.</td><td>Bits that change after flipping one bit of the entropy.</td><td class="live" id="ssDer">–</td></tr>
+        <tr><td>secp256k1</td><td>Structure, on purpose: <span class="m">(a + b)G = aG + bG</span> makes signatures possible.</td><td>Tested in Homework 1 (algebraic relations).</td><td class="live">holds in 100% of cases</td></tr>
+        <tr><td>Keccak-256</td><td>Uniform, avalanche-like output.</td><td>Hex digits of 500 addresses; bits changed in the address.</td><td class="live" id="ssHash">–</td></tr>
+        <tr><td>EIP-55</td><td>About 15 check bits against accidental typos.</td><td>40,000 one-character typos.</td><td class="live" id="ssTypo">–</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="prose" style="margin-top:1.3rem">
+    <p>The pattern is the same one Homework 1 found. Generation, derivation and hashing all produce outputs that look perfectly random, and only generation is actually random. Checksums are measured by how often they miss an error, not by randomness. And secp256k1 is the one step that is deliberately structured, because that structure is what lets a public key verify a signature.</p>
+  </div>
+  </div>
+</section>
+
+<!-- ================= 5. HISTORY ================= -->
+<section class="task wrap" id="history">
+  <div class="task-head">
+    <div class="task-num" aria-hidden="true">5</div>
+    <div>
+      <h2>Historical context</h2>
+      <p class="lede">The primitives are decades older than the wallet standards. Once Bitcoin created the need, BIP-32, BIP-39, BIP-44 and EIP-55 assembled them into a pipeline in just four years.</p>
+    </div>
+  </div>
+
+  <div class="task-body">
+  <div class="tl-strip" id="tlStrip" aria-hidden="true"></div>
+  <p class="tl-cap">Filled dots: the dates in the homework. Open dots: context. The axis is compressed between 2002 and 2008.</p>
+  <div class="tl-list" id="tlList"></div>
+
+  <div class="prose" style="margin-top:1.6rem">
+    <h3 style="margin-top:0">Reading the order</h3>
+    <p>The order goes from mathematics to standards to products to usability fixes. Public-key cryptography (1977), elliptic curves (1985) and the hash standards (2001) were decades of academic and standards work. Bitcoin (2009) then turned private keys into money, and managing them became a practical problem. The wallet standards answered it in quick succession, each building on the previous one: BIP-32 (2012) grew a tree of keys from one seed, BIP-39 (2013) made that seed writable as words, and BIP-44 (2014) fixed where in the tree each coin lives. Ethereum (2015) reused all three with its own coin type, 60, and its own hash, Keccak-256, adopted before SHA-3 was final. EIP-55 (2016) fixed a problem found in daily use: mistyped addresses.</p>
+    <h3>Why RSA is on the list</h3>
+    <p>RSA is not used anywhere in the wallet pipeline, but it is where public-key cryptography starts: the first practical system in which one key can be published while the other stays secret. Its security rests on factoring large numbers. Bitcoin and Ethereum chose elliptic curves instead because they give the same security with far smaller keys and signatures: a 256-bit secp256k1 key offers about the same security as a 3072-bit RSA key, and a signature takes 65 bytes instead of 384. That matters when every transaction ever made is stored by thousands of computers.</p>
+  </div>
+
+  <h3>SHA-2 and Keccak / SHA-3: related, not the same</h3>
+  <div class="tbl-box scroll" style="max-height:none">
+    <table>
+      <thead><tr><th></th><th>SHA-2 (SHA-256, SHA-512)</th><th>Keccak and SHA-3</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Origin</strong></td><td>Designed by the NSA, published by NIST as a draft in 2001; final standard (FIPS 180-2) in 2002.</td><td>Designed by Bertoni, Daemen, Peeters and Van Assche; won NIST's public competition in 2012; standardized as SHA-3 (FIPS 202) in 2015.</td></tr>
+        <tr><td><strong>Construction</strong></td><td>Merkle–Damgård: a compression function applied block after block.</td><td>Sponge: the input is absorbed into a 1600-bit state, then the output is squeezed out.</td></tr>
+        <tr><td><strong>Inside</strong></td><td>Additions, rotations and logic on 32-bit (SHA-256) or 64-bit (SHA-512) words.</td><td>The permutation Keccak-f[1600]: only XOR, AND, NOT and rotations.</td></tr>
+        <tr><td><strong>Length extension</strong></td><td>Vulnerable, which is one reason HMAC exists.</td><td>Not vulnerable.</td></tr>
+        <tr><td><strong>Why it exists</strong></td><td>The main hash standard since 2001.</td><td>A structurally different alternative, in case SHA-2 is ever broken.</td></tr>
+        <tr><td><strong>In this pipeline</strong></td><td>SHA-256: BIP-39 checksum. SHA-512: inside PBKDF2 (BIP-39) and HMAC (BIP-32).</td><td>Keccak-256: the address and EIP-55.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="prose" style="margin-top:1.2rem">
+    <p><strong>Keccak-256 is not SHA3-256.</strong> Both use the same permutation, the same rate (1088 bits) and the same 256-bit output. They differ only in padding: Keccak marks the end of the message with the byte <span class="m">0x01</span>, while the final SHA-3 standard adds two domain-separation bits and uses <span class="m">0x06</span>. Ethereum adopted Keccak while the standard was still being finalized and kept the original padding, so the two functions give completely different outputs for the same input.</p>
+  </div>
+  <div class="sheet hashdemo">
+    <div class="field"><label for="hin">Try it: text to hash</label><input id="hin" type="text" value="hello" spellcheck="false" style="width:min(100%,28rem)"></div>
+    <div id="hout" style="margin-top:.6rem"></div>
+  </div>
+  </div>
+</section>
+
+<!-- ================= 6. WHY SEVERAL ================= -->
+<section class="task wrap" id="why">
+  <div class="task-head">
+    <div class="task-num" aria-hidden="true">6</div>
+    <div>
+      <h2>Why not one algorithm for everything?</h2>
+      <p class="lede">Because the wallet has several different problems to solve, and each primitive offers properties the others cannot.</p>
+    </div>
+  </div>
+
+  <div class="task-body">
+  <div class="tbl-box scroll" style="max-height:none">
+    <table class="why">
+      <thead><tr><th>The wallet needs…</th><th>BIP-39</th><th>BIP-32 / 44</th><th>secp256k1</th><th>Keccak-256</th><th>EIP-55</th></tr></thead>
+      <tbody>
+        <tr><td>a backup a person can write down</td><td class="y"></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>to slow down anyone guessing the phrase or passphrase</td><td class="y"></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td>many unrelated keys from one backup</td><td></td><td class="y"></td><td></td><td></td><td></td></tr>
+        <tr><td>the same keys in every wallet</td><td></td><td class="y"></td><td></td><td></td><td></td></tr>
+        <tr><td>to prove ownership and sign without revealing the key</td><td></td><td></td><td class="y"></td><td></td><td></td></tr>
+        <tr><td>a short public identifier</td><td></td><td></td><td></td><td class="y"></td><td></td></tr>
+        <tr><td>to catch typos when copying</td><td class="y"></td><td></td><td></td><td></td><td class="y"></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="prose" style="margin-top:1.4rem">
+    <p><strong>Key management (BIP-39, BIP-32, BIP-44).</strong> People need one backup they can write on paper; the system needs many keys. BIP-39 makes randomness writable and slow to brute-force, BIP-32 grows any number of keys from it, and BIP-44 makes every wallet grow the same tree.</p>
+    <p><strong>Ownership (secp256k1).</strong> Public-key cryptography gives a pair where one half can be published and the other proves control through signatures. A plain hash cannot do this: to let others check that you know the input, you would have to reveal it, and then anyone could use it.</p>
+    <p><strong>Identity (Keccak-256).</strong> A 64-byte public key is long to share. Hashing it gives a short 20-byte identifier, and the public key itself only becomes visible once the owner signs a transaction, because it can be recovered from the signature.</p>
+    <p><strong>Error detection (EIP-55).</strong> Hex addresses were easy to mistype, and a mistake sends funds to an address nobody controls. A checksum catches accidents cheaply, without changing the address length or breaking old software. It is not a defence against attackers, who can compute it too.</p>
+    <p>Layering also keeps the system flexible: the same BIP-39 phrase works for Bitcoin by changing the coin type in the path, and EIP-55 was added in 2016 without changing a single key. A single algorithm would have to be at the same time random, human-readable, slow, fast, invertible and non-invertible, which is impossible.</p>
+  </div>
+  </div>
+</section>
+</main>
+
+<footer class="wrap">
+  <p>Riccardo Santoni, student ID 2007183, Statistics course, 2026</p>
+</footer>
+<script>
+const BIP39_WORDS = "abandon ability able about above absent absorb abstract absurd abuse access accident account accuse achieve acid acoustic acquire across act action actor actress actual adapt add addict address adjust admit adult advance advice aerobic affair afford afraid again age agent agree ahead aim air airport aisle alarm album alcohol alert alien all alley allow almost alone alpha already also alter always amateur amazing among amount amused analyst anchor ancient anger angle angry animal ankle announce annual another answer antenna antique anxiety any apart apology appear apple approve april arch arctic area arena argue arm armed armor army around arrange arrest arrive arrow art artefact artist artwork ask aspect assault asset assist assume asthma athlete atom attack attend attitude attract auction audit august aunt author auto autumn average avocado avoid awake aware away awesome awful awkward axis baby bachelor bacon badge bag balance balcony ball bamboo banana banner bar barely bargain barrel base basic basket battle beach bean beauty because become beef before begin behave behind believe below belt bench benefit best betray better between beyond bicycle bid bike bind biology bird birth bitter black blade blame blanket blast bleak bless blind blood blossom blouse blue blur blush board boat body boil bomb bone bonus book boost border boring borrow boss bottom bounce box boy bracket brain brand brass brave bread breeze brick bridge brief bright bring brisk broccoli broken bronze broom brother brown brush bubble buddy budget buffalo build bulb bulk bullet bundle bunker burden burger burst bus business busy butter buyer buzz cabbage cabin cable cactus cage cake call calm camera camp can canal cancel candy cannon canoe canvas canyon capable capital captain car carbon card cargo carpet carry cart case cash casino castle casual cat catalog catch category cattle caught cause caution cave ceiling celery cement census century cereal certain chair chalk champion change chaos chapter charge chase chat cheap check cheese chef cherry chest chicken chief child chimney choice choose chronic chuckle chunk churn cigar cinnamon circle citizen city civil claim clap clarify claw clay clean clerk clever click client cliff climb clinic clip clock clog close cloth cloud clown club clump cluster clutch coach coast coconut code coffee coil coin collect color column combine come comfort comic common company concert conduct confirm congress connect consider control convince cook cool copper copy coral core corn correct cost cotton couch country couple course cousin cover coyote crack cradle craft cram crane crash crater crawl crazy cream credit creek crew cricket crime crisp critic crop cross crouch crowd crucial cruel cruise crumble crunch crush cry crystal cube culture cup cupboard curious current curtain curve cushion custom cute cycle dad damage damp dance danger daring dash daughter dawn day deal debate debris decade december decide decline decorate decrease deer defense define defy degree delay deliver demand demise denial dentist deny depart depend deposit depth deputy derive describe desert design desk despair destroy detail detect develop device devote diagram dial diamond diary dice diesel diet differ digital dignity dilemma dinner dinosaur direct dirt disagree discover disease dish dismiss disorder display distance divert divide divorce dizzy doctor document dog doll dolphin domain donate donkey donor door dose double dove draft dragon drama drastic draw dream dress drift drill drink drip drive drop drum dry duck dumb dune during dust dutch duty dwarf dynamic eager eagle early earn earth easily east easy echo ecology economy edge edit educate effort egg eight either elbow elder electric elegant element elephant elevator elite else embark embody embrace emerge emotion employ empower empty enable enact end endless endorse enemy energy enforce engage engine enhance enjoy enlist enough enrich enroll ensure enter entire entry envelope episode equal equip era erase erode erosion error erupt escape essay essence estate eternal ethics evidence evil evoke evolve exact example excess exchange excite exclude excuse execute exercise exhaust exhibit exile exist exit exotic expand expect expire explain expose express extend extra eye eyebrow fabric face faculty fade faint faith fall false fame family famous fan fancy fantasy farm fashion fat fatal father fatigue fault favorite feature february federal fee feed feel female fence festival fetch fever few fiber fiction field figure file film filter final find fine finger finish fire firm first fiscal fish fit fitness fix flag flame flash flat flavor flee flight flip float flock floor flower fluid flush fly foam focus fog foil fold follow food foot force forest forget fork fortune forum forward fossil foster found fox fragile frame frequent fresh friend fringe frog front frost frown frozen fruit fuel fun funny furnace fury future gadget gain galaxy gallery game gap garage garbage garden garlic garment gas gasp gate gather gauge gaze general genius genre gentle genuine gesture ghost giant gift giggle ginger giraffe girl give glad glance glare glass glide glimpse globe gloom glory glove glow glue goat goddess gold good goose gorilla gospel gossip govern gown grab grace grain grant grape grass gravity great green grid grief grit grocery group grow grunt guard guess guide guilt guitar gun gym habit hair half hammer hamster hand happy harbor hard harsh harvest hat have hawk hazard head health heart heavy hedgehog height hello helmet help hen hero hidden high hill hint hip hire history hobby hockey hold hole holiday hollow home honey hood hope horn horror horse hospital host hotel hour hover hub huge human humble humor hundred hungry hunt hurdle hurry hurt husband hybrid ice icon idea identify idle ignore ill illegal illness image imitate immense immune impact impose improve impulse inch include income increase index indicate indoor industry infant inflict inform inhale inherit initial inject injury inmate inner innocent input inquiry insane insect inside inspire install intact interest into invest invite involve iron island isolate issue item ivory jacket jaguar jar jazz jealous jeans jelly jewel job join joke journey joy judge juice jump jungle junior junk just kangaroo keen keep ketchup key kick kid kidney kind kingdom kiss kit kitchen kite kitten kiwi knee knife knock know lab label labor ladder lady lake lamp language laptop large later latin laugh laundry lava law lawn lawsuit layer lazy leader leaf learn leave lecture left leg legal legend leisure lemon lend length lens leopard lesson letter level liar liberty library license life lift light like limb limit link lion liquid list little live lizard load loan lobster local lock logic lonely long loop lottery loud lounge love loyal lucky luggage lumber lunar lunch luxury lyrics machine mad magic magnet maid mail main major make mammal man manage mandate mango mansion manual maple marble march margin marine market marriage mask mass master match material math matrix matter maximum maze meadow mean measure meat mechanic medal media melody melt member memory mention menu mercy merge merit merry mesh message metal method middle midnight milk million mimic mind minimum minor minute miracle mirror misery miss mistake mix mixed mixture mobile model modify mom moment monitor monkey monster month moon moral more morning mosquito mother motion motor mountain mouse move movie much muffin mule multiply muscle museum mushroom music must mutual myself mystery myth naive name napkin narrow nasty nation nature near neck need negative neglect neither nephew nerve nest net network neutral never news next nice night noble noise nominee noodle normal north nose notable note nothing notice novel now nuclear number nurse nut oak obey object oblige obscure observe obtain obvious occur ocean october odor off offer office often oil okay old olive olympic omit once one onion online only open opera opinion oppose option orange orbit orchard order ordinary organ orient original orphan ostrich other outdoor outer output outside oval oven over own owner oxygen oyster ozone pact paddle page pair palace palm panda panel panic panther paper parade parent park parrot party pass patch path patient patrol pattern pause pave payment peace peanut pear peasant pelican pen penalty pencil people pepper perfect permit person pet phone photo phrase physical piano picnic picture piece pig pigeon pill pilot pink pioneer pipe pistol pitch pizza place planet plastic plate play please pledge pluck plug plunge poem poet point polar pole police pond pony pool popular portion position possible post potato pottery poverty powder power practice praise predict prefer prepare present pretty prevent price pride primary print priority prison private prize problem process produce profit program project promote proof property prosper protect proud provide public pudding pull pulp pulse pumpkin punch pupil puppy purchase purity purpose purse push put puzzle pyramid quality quantum quarter question quick quit quiz quote rabbit raccoon race rack radar radio rail rain raise rally ramp ranch random range rapid rare rate rather raven raw razor ready real reason rebel rebuild recall receive recipe record recycle reduce reflect reform refuse region regret regular reject relax release relief rely remain remember remind remove render renew rent reopen repair repeat replace report require rescue resemble resist resource response result retire retreat return reunion reveal review reward rhythm rib ribbon rice rich ride ridge rifle right rigid ring riot ripple risk ritual rival river road roast robot robust rocket romance roof rookie room rose rotate rough round route royal rubber rude rug rule run runway rural sad saddle sadness safe sail salad salmon salon salt salute same sample sand satisfy satoshi sauce sausage save say scale scan scare scatter scene scheme school science scissors scorpion scout scrap screen script scrub sea search season seat second secret section security seed seek segment select sell seminar senior sense sentence series service session settle setup seven shadow shaft shallow share shed shell sheriff shield shift shine ship shiver shock shoe shoot shop short shoulder shove shrimp shrug shuffle shy sibling sick side siege sight sign silent silk silly silver similar simple since sing siren sister situate six size skate sketch ski skill skin skirt skull slab slam sleep slender slice slide slight slim slogan slot slow slush small smart smile smoke smooth snack snake snap sniff snow soap soccer social sock soda soft solar soldier solid solution solve someone song soon sorry sort soul sound soup source south space spare spatial spawn speak special speed spell spend sphere spice spider spike spin spirit split spoil sponsor spoon sport spot spray spread spring spy square squeeze squirrel stable stadium staff stage stairs stamp stand start state stay steak steel stem step stereo stick still sting stock stomach stone stool story stove strategy street strike strong struggle student stuff stumble style subject submit subway success such sudden suffer sugar suggest suit summer sun sunny sunset super supply supreme sure surface surge surprise surround survey suspect sustain swallow swamp swap swarm swear sweet swift swim swing switch sword symbol symptom syrup system table tackle tag tail talent talk tank tape target task taste tattoo taxi teach team tell ten tenant tennis tent term test text thank that theme then theory there they thing this thought three thrive throw thumb thunder ticket tide tiger tilt timber time tiny tip tired tissue title toast tobacco today toddler toe together toilet token tomato tomorrow tone tongue tonight tool tooth top topic topple torch tornado tortoise toss total tourist toward tower town toy track trade traffic tragic train transfer trap trash travel tray treat tree trend trial tribe trick trigger trim trip trophy trouble truck true truly trumpet trust truth try tube tuition tumble tuna tunnel turkey turn turtle twelve twenty twice twin twist two type typical ugly umbrella unable unaware uncle uncover under undo unfair unfold unhappy uniform unique unit universe unknown unlock until unusual unveil update upgrade uphold upon upper upset urban urge usage use used useful useless usual utility vacant vacuum vague valid valley valve van vanish vapor various vast vault vehicle velvet vendor venture venue verb verify version very vessel veteran viable vibrant vicious victory video view village vintage violin virtual virus visa visit visual vital vivid vocal voice void volcano volume vote voyage wage wagon wait walk wall walnut want warfare warm warrior wash wasp waste water wave way wealth weapon wear weasel weather web wedding weekend weird welcome west wet whale what wheat wheel when where whip whisper wide width wife wild will win window wine wing wink winner winter wire wisdom wise wish witness wolf woman wonder wood wool word work world worry worth wrap wreck wrestle wrist write wrong yard year yellow you young youth zebra zero zone zoo".split(" ");
+/* ============================================================
+   BYTES
+   ============================================================ */
+const enc = new TextEncoder();
+const utf8 = s => Array.from(enc.encode(s));
+const toHex = arr => Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
+const fromHex = h => { h = h.replace(/^0x/, ''); const o = []; for (let i = 0; i < h.length; i += 2) o.push(parseInt(h.substr(i, 2), 16)); return o; };
+const bytesToBig = b => b.length ? BigInt('0x' + toHex(b)) : 0n;
+const bigToBytes = (v, len) => fromHex(v.toString(16).padStart(len * 2, '0'));
+const ser32 = i => [(i >>> 24) & 255, (i >>> 16) & 255, (i >>> 8) & 255, i & 255];
+const popcount8 = (() => { const t = new Uint8Array(256); for (let i = 0; i < 256; i++) t[i] = (i & 1) + t[i >> 1]; return t; })();
+const hamming = (a, b) => { let d = 0; for (let i = 0; i < a.length; i++) d += popcount8[a[i] ^ b[i]]; return d; };
+
+/* ============================================================
+   KECCAK sponge: the same permutation gives Keccak-256 (Ethereum,
+   padding byte 0x01) and SHA3-256 (FIPS 202, padding byte 0x06)
+   ============================================================ */
+const keccakSponge = (() => {
+  const RC_LO = [], RC_HI = [];
+  let R = 1;
+  for (let i = 0; i < 24; i++) {
+    let lo = 0, hi = 0;
+    for (let j = 0; j < 7; j++) {
+      R = ((R << 1) ^ ((R >> 7) * 0x71)) % 256;
+      if (R & 2) { const b = (1 << j) - 1; if (b < 32) lo ^= 1 << b; else hi ^= 1 << (b - 32); }
+    }
+    RC_LO.push(lo >>> 0); RC_HI.push(hi >>> 0);
+  }
+  const ROT = new Array(25).fill(0), PI = new Array(25).fill(0);
+  { let x = 1, y = 0; for (let t = 0; t < 24; t++) { ROT[x + 5 * y] = ((t + 1) * (t + 2) / 2) % 64; [x, y] = [y, (2 * x + 3 * y) % 5]; } }
+  for (let x = 0; x < 5; x++) for (let y = 0; y < 5; y++) PI[x + 5 * y] = y + 5 * ((2 * x + 3 * y) % 5);
+  const sl = new Uint32Array(25), sh = new Uint32Array(25), bl = new Uint32Array(25), bh = new Uint32Array(25);
+  const cl = new Uint32Array(5), ch = new Uint32Array(5);
+  function f() {
+    for (let r = 0; r < 24; r++) {
+      for (let x = 0; x < 5; x++) { cl[x] = sl[x] ^ sl[x + 5] ^ sl[x + 10] ^ sl[x + 15] ^ sl[x + 20]; ch[x] = sh[x] ^ sh[x + 5] ^ sh[x + 10] ^ sh[x + 15] ^ sh[x + 20]; }
+      for (let x = 0; x < 5; x++) {
+        const a = (x + 1) % 5, b = (x + 4) % 5;
+        const dl = cl[b] ^ ((cl[a] << 1) | (ch[a] >>> 31)), dh = ch[b] ^ ((ch[a] << 1) | (cl[a] >>> 31));
+        for (let y = 0; y < 25; y += 5) { sl[x + y] ^= dl; sh[x + y] ^= dh; }
+      }
+      for (let i = 0; i < 25; i++) {
+        const n = ROT[i], lo = sl[i], hi = sh[i]; let rl, rh;
+        if (n === 0) { rl = lo; rh = hi; }
+        else if (n < 32) { rl = (lo << n) | (hi >>> (32 - n)); rh = (hi << n) | (lo >>> (32 - n)); }
+        else if (n === 32) { rl = hi; rh = lo; }
+        else { const m = n - 32; rl = (hi << m) | (lo >>> (32 - m)); rh = (lo << m) | (hi >>> (32 - m)); }
+        bl[PI[i]] = rl; bh[PI[i]] = rh;
+      }
+      for (let y = 0; y < 25; y += 5) for (let x = 0; x < 5; x++) {
+        const i1 = (x + 1) % 5 + y, i2 = (x + 2) % 5 + y;
+        sl[x + y] = bl[x + y] ^ (~bl[i1] & bl[i2]); sh[x + y] = bh[x + y] ^ (~bh[i1] & bh[i2]);
+      }
+      sl[0] ^= RC_LO[r]; sh[0] ^= RC_HI[r];
+    }
+  }
+  return function (bytes, padByte) {
+    const rate = 136, msg = Array.from(bytes);
+    msg.push(padByte); while (msg.length % rate !== 0) msg.push(0); msg[msg.length - 1] |= 0x80;
+    sl.fill(0); sh.fill(0);
+    for (let off = 0; off < msg.length; off += rate) {
+      for (let i = 0; i < rate / 8; i++) {
+        const o = off + 8 * i;
+        sl[i] ^= (msg[o] | (msg[o + 1] << 8) | (msg[o + 2] << 16) | (msg[o + 3] << 24)) >>> 0;
+        sh[i] ^= (msg[o + 4] | (msg[o + 5] << 8) | (msg[o + 6] << 16) | (msg[o + 7] << 24)) >>> 0;
+      }
+      f();
+    }
+    const out = [];
+    for (let i = 0; i < 4; i++) for (const v of [sl[i], sh[i]]) out.push(v & 255, (v >>> 8) & 255, (v >>> 16) & 255, v >>> 24);
+    return out;
+  };
+})();
+const keccak256 = b => keccakSponge(b, 0x01);
+const sha3_256 = b => keccakSponge(b, 0x06);
+
+/* ============================================================
+   SHA-2, HMAC, PBKDF2 — native Web Crypto (secure contexts only)
+   ============================================================ */
+const subtle = globalThis.crypto && globalThis.crypto.subtle;
+async function sha256(bytes) { return Array.from(new Uint8Array(await subtle.digest('SHA-256', new Uint8Array(bytes)))); }
+async function sha512(bytes) { return Array.from(new Uint8Array(await subtle.digest('SHA-512', new Uint8Array(bytes)))); }
+async function hmacSha512(key, data) {
+  const k = await subtle.importKey('raw', new Uint8Array(key), { name: 'HMAC', hash: 'SHA-512' }, false, ['sign']);
+  return Array.from(new Uint8Array(await subtle.sign('HMAC', k, new Uint8Array(data))));
+}
+async function pbkdf2Sha512(password, salt, iterations, bits) {
+  const k = await subtle.importKey('raw', new Uint8Array(password), 'PBKDF2', false, ['deriveBits']);
+  return Array.from(new Uint8Array(await subtle.deriveBits({ name: 'PBKDF2', salt: new Uint8Array(salt), iterations, hash: 'SHA-512' }, k, bits)));
+}
+
+/* ============================================================
+   secp256k1 — Jacobian coordinates + fixed-base table for G
+   ============================================================ */
+const SECP = {
+  p: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn,
+  n: 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n,
+  G: { x: 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798n,
+       y: 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8n }
+};
+const EC = (() => {
+  const P = SECP.p;
+  const md = a => { a %= P; return a < 0n ? a + P : a; };
+  function inv(a) {
+    let r0 = md(a), r1 = P, s0 = 1n, s1 = 0n;
+    while (r1 !== 0n) { const q = r0 / r1; [r0, r1] = [r1, r0 - q * r1]; [s0, s1] = [s1, s0 - q * s1]; }
+    return md(s0);
+  }
+  function affAdd(A, B) {                 // affine addition (used to build the table)
+    if (!A) return B; if (!B) return A;
+    if (A.x === B.x && md(A.y + B.y) === 0n) return null;
+    const l = A.x === B.x ? md(3n * A.x * A.x * inv(2n * A.y)) : md((B.y - A.y) * inv(B.x - A.x));
+    const x = md(l * l - A.x - B.x); return { x, y: md(l * (A.x - x) - A.y) };
+  }
+  function jDbl(J) {
+    const [X, Y, Z] = J; if (Z === 0n || Y === 0n) return [0n, 1n, 0n];
+    const YY = md(Y * Y), S = md(4n * X * YY), M = md(3n * X * X);
+    const X3 = md(M * M - 2n * S);
+    return [X3, md(M * (S - X3) - 8n * YY * YY), md(2n * Y * Z)];
+  }
+  function jAddAff(J, A) {                // Jacobian + affine, no inversion
+    const [X1, Y1, Z1] = J; if (Z1 === 0n) return [A.x, A.y, 1n];
+    const Z1Z1 = md(Z1 * Z1), U2 = md(A.x * Z1Z1), S2 = md(A.y * Z1 * Z1Z1);
+    const H = md(U2 - X1), r = md(S2 - Y1);
+    if (H === 0n) return r === 0n ? jDbl(J) : [0n, 1n, 0n];
+    const HH = md(H * H), HHH = md(H * HH), V = md(X1 * HH);
+    const X3 = md(r * r - HHH - 2n * V);
+    return [X3, md(r * (V - X3) - Y1 * HHH), md(Z1 * H)];
+  }
+  function toAff([X, Y, Z]) { if (Z === 0n) return null; const zi = inv(Z), zi2 = md(zi * zi); return { x: md(X * zi2), y: md(Y * zi2 * zi) }; }
+  let table = null;                       // table[w][j] = j·16^w·G
+  function build() {
+    table = []; let base = SECP.G;
+    for (let w = 0; w < 64; w++) {
+      const row = [null, base]; let acc = base;
+      for (let j = 2; j < 16; j++) { acc = affAdd(acc, base); row.push(acc); }
+      table.push(row); base = affAdd(acc, base);
+    }
+  }
+  function mulG(k) {                      // public key = k·G, 64 additions
+    if (!table) build();
+    let R = [0n, 1n, 0n];
+    for (let w = 0; w < 64; w++) { const nib = Number((k >> BigInt(4 * w)) & 15n); if (nib) R = jAddAff(R, table[w][nib]); }
+    return toAff(R);
+  }
+  return { mulG, affAdd };
+})();
+const serPCompressed = Q => [(Q.y & 1n) ? 3 : 2, ...bigToBytes(Q.x, 32)];
+
+/* ============================================================
+   BIP-39 — entropy ↔ mnemonic, mnemonic → seed
+   ============================================================ */
+const WORD_INDEX = new Map(BIP39_WORDS.map((w, i) => [w, i]));
+const normalizePhrase = s => s.normalize('NFKD').toLowerCase().trim().split(/\s+/).filter(Boolean);
+
+async function entropyToMnemonic(entropy) {
+  const ENT = entropy.length * 8, CS = ENT / 32;
+  const h = await sha256(entropy);
+  let bits = entropy.map(b => b.toString(2).padStart(8, '0')).join('') + h.map(b => b.toString(2).padStart(8, '0')).join('').slice(0, CS);
+  const idx = []; for (let i = 0; i < bits.length; i += 11) idx.push(parseInt(bits.slice(i, i + 11), 2));
+  return { words: idx.map(i => BIP39_WORDS[i]), indices: idx, bits, ENT, CS };
+}
+/* checks a mnemonic; returns the entropy, the checksum bits and whether they match */
+async function checkMnemonic(words) {
+  if (![12, 15, 18, 21, 24].includes(words.length)) return { ok: false, reason: `BIP-39 phrases have 12, 15, 18, 21 or 24 words; this one has ${words.length}.` };
+  const unknown = words.filter(w => !WORD_INDEX.has(w));
+  if (unknown.length) return { ok: false, reason: `Not in the BIP-39 word list: ${unknown.slice(0, 4).join(', ')}${unknown.length > 4 ? '…' : ''}.` };
+  const indices = words.map(w => WORD_INDEX.get(w));
+  const bits = indices.map(i => i.toString(2).padStart(11, '0')).join('');
+  const CS = bits.length / 33, ENT = bits.length - CS;
+  const entropy = []; for (let i = 0; i < ENT; i += 8) entropy.push(parseInt(bits.slice(i, i + 8), 2));
+  const h = await sha256(entropy);
+  const expected = h.map(b => b.toString(2).padStart(8, '0')).join('').slice(0, CS);
+  const given = bits.slice(ENT);
+  return { ok: expected === given, reason: expected === given ? '' : `The checksum does not match (expected bits ${expected}, found ${given}). A wallet would reject this phrase.`, indices, bits, entropy, ENT, CS, expected, given };
+}
+/* fast validity test on raw 11-bit indices (used by the statistics) */
+async function indicesValid(indices) {
+  const bits = indices.map(i => i.toString(2).padStart(11, '0')).join('');
+  const CS = bits.length / 33, ENT = bits.length - CS;
+  const entropy = []; for (let i = 0; i < ENT; i += 8) entropy.push(parseInt(bits.slice(i, i + 8), 2));
+  const h = await sha256(entropy);
+  return h.map(b => b.toString(2).padStart(8, '0')).join('').slice(0, CS) === bits.slice(ENT);
+}
+function mnemonicToSeed(words, passphrase) {
+  return pbkdf2Sha512(utf8(words.join(' ')), utf8('mnemonic' + (passphrase || '').normalize('NFKD')), 2048, 512);
+}
+
+/* ============================================================
+   BIP-32 / BIP-44 — hierarchical deterministic derivation
+   ============================================================ */
+const HARD = 0x80000000;
+function parsePath(path) {
+  const parts = path.trim().replace(/\s+/g, '').split('/');
+  if (parts[0] !== 'm') throw new Error('A derivation path starts with m, for example m/44\'/60\'/0\'/0/0.');
+  return parts.slice(1).map(p => {
+    const hard = /['hH]$/.test(p), v = Number(hard ? p.slice(0, -1) : p);
+    if (!/^\d+$/.test(hard ? p.slice(0, -1) : p) || v >= HARD) throw new Error(`"${p}" is not a valid path level.`);
+    return hard ? v + HARD : v;
+  });
+}
+const fmtIndex = i => i >= HARD ? `${i - HARD}'` : `${i}`;
+async function masterKey(seed) {
+  const I = await hmacSha512(utf8('Bitcoin seed'), seed);
+  return { k: bytesToBig(I.slice(0, 32)), c: I.slice(32) };
+}
+async function childKey(node, i) {
+  const data = i >= HARD
+    ? [0, ...bigToBytes(node.k, 32), ...ser32(i)]
+    : [...serPCompressed(EC.mulG(node.k)), ...ser32(i)];
+  const I = await hmacSha512(node.c, data);
+  return { k: (bytesToBig(I.slice(0, 32)) + node.k) % SECP.n, c: I.slice(32) };
+}
+async function derivePath(seed, path) {
+  const idx = parsePath(path);
+  let node = await masterKey(seed);
+  const levels = [{ label: 'm', node }];
+  let label = 'm';
+  for (const i of idx) { node = await childKey(node, i); label += '/' + fmtIndex(i); levels.push({ label, index: i, node }); }
+  return levels;
+}
+
+/* ============================================================
+   ADDRESS + EIP-55
+   ============================================================ */
+function pubToAddress(Q) {
+  const h = keccak256([...bigToBytes(Q.x, 32), ...bigToBytes(Q.y, 32)]);
+  return { hash: toHex(h), lower: toHex(h.slice(12)) };
+}
+function eip55(lower40) {
+  const h = toHex(keccak256(utf8(lower40)));
+  const out = [...lower40].map((c, i) => /[a-f]/.test(c) && parseInt(h[i], 16) >= 8 ? c.toUpperCase() : c).join('');
+  return { address: '0x' + out, hash: h };
+}
+function eip55Valid(addr40) {               // addr40: 40 hex chars in mixed case
+  return eip55(addr40.toLowerCase()).address.slice(2) === addr40;
+}
+
+/* seeded random numbers (mulberry32) */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+/* ============================================================
+   PAGE UTILITIES
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const redrawers = [];                     // functions to call when size or theme changes
+const fmtN = v => Number(v).toLocaleString('en-US');
+const sub = n => String(n).replace(/\d/g, d => '₀₁₂₃₄₅₆₇₈₉'[d]);
+
+function setupCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(10, Math.round(r.width)), h = Math.max(10, Math.round(r.height));
+  if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+function hexA(color, a) {                 // '#rrggbb' -> rgba
+  const c = color.replace('#', '');
+  if (c.length !== 6) return color;
+  return `rgba(${parseInt(c.slice(0, 2), 16)},${parseInt(c.slice(2, 4), 16)},${parseInt(c.slice(4, 6), 16)},${a})`;
+}
+
+/* theme toggle */
+(() => {
+  const root = document.documentElement;
+  try { const t = localStorage.getItem('ec-theme'); if (t) root.dataset.theme = t; } catch (e) {}
+  $('themeBtn').addEventListener('click', () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('ec-theme', root.dataset.theme); } catch (e) {}
+    redrawers.forEach(f => f());
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => redrawers.forEach(f => f()));
+  let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => redrawers.forEach(f => f()), 120); });
+})();
+
+
+/* ---------- tiny chart kit (canvas, no libraries) ---------- */
+function frame(cv, o) {
+  const { ctx, w, h } = setupCanvas(cv);
+  const L = 58, R = 12, T = 10, B = 34;
+  const pw = w - L - R, ph = h - T - B;
+  const sx = v => L + (v - o.xMin) / ((o.xMax - o.xMin) || 1) * pw;
+  const sy = v => T + ph - (v - o.yMin) / ((o.yMax - o.yMin) || 1) * ph;
+  const muted = css('--muted'), rule = css('--rule');
+  ctx.font = `11px ${css('--sans')}`; ctx.fillStyle = muted; ctx.strokeStyle = rule; ctx.lineWidth = 1;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let i = 0; i <= 4; i++) {
+    const v = o.yMin + (o.yMax - o.yMin) * i / 4, y = sy(v);
+    ctx.globalAlpha = .5; ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + pw, y); ctx.stroke(); ctx.globalAlpha = 1;
+    ctx.fillText(o.yFmt ? o.yFmt(v) : (o.yMax - o.yMin >= 8 ? Math.round(v) : +v.toFixed(2)), L - 6, y);
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  const xt = o.xTicks || [o.xMin, (o.xMin + o.xMax) / 2, o.xMax];
+  xt.forEach(v => ctx.fillText(o.xFmt ? o.xFmt(v) : Math.round(v), sx(v), T + ph + 5));
+  if (o.xLabel) { ctx.textAlign = 'right'; ctx.fillText(o.xLabel, L + pw, T + ph + 19); }
+  if (o.yLabel) { ctx.save(); ctx.translate(10, T + ph / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(o.yLabel, 0, 0); ctx.restore(); }
+  return { ctx, sx, sy, L, T, pw, ph };
+}
+function histChart(cv, { series, expected, curve, cat, xMin = 0, xMax, xLabel, yLabel, xFmt }) {
+  // series: [{ counts, color, style: 'bar' | 'stairs' }]; cat = tick positions when bars are integer categories
+  const nb = series[0].counts.length;
+  let yMax = 1;
+  for (const arr of [...series.map(s => s.counts), expected || [], curve || []]) for (const v of arr) if (v > yMax) yMax = v;
+  yMax *= 1.1;
+  const F = cat
+    ? frame(cv, { xMin: -0.5, xMax: nb - 0.5, yMin: 0, yMax, xLabel, yLabel, xTicks: cat, xFmt })
+    : frame(cv, { xMin, xMax, yMin: 0, yMax, xLabel, yLabel, xFmt });
+  const bw = F.pw / nb, ctx = F.ctx, base = F.T + F.ph;
+  for (const s of series.filter(s => s.style !== 'stairs')) {
+    ctx.fillStyle = s.color;
+    s.counts.forEach((c, i) => { const y = F.sy(c); ctx.fillRect(F.L + i * bw + (bw > 4 ? 1 : 0), y, Math.max(1, bw - (bw > 4 ? 2 : 0)), base - y); });
+  }
+  for (const s of series.filter(s => s.style === 'stairs')) {
+    ctx.strokeStyle = s.color; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.beginPath();
+    s.counts.forEach((c, i) => { const x0 = F.L + i * bw, y = F.sy(c); if (i === 0) { ctx.moveTo(x0, base); } ctx.lineTo(x0, y); ctx.lineTo(x0 + bw, y); });
+    ctx.lineTo(F.L + nb * bw, base); ctx.stroke();
+  }
+  if (expected) {
+    ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]); ctx.globalAlpha = .75;
+    ctx.beginPath(); expected.forEach((e, i) => { const x = F.L + (i + .5) * bw, y = F.sy(e); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+  }
+  if (curve) {
+    ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1.6;
+    ctx.beginPath(); curve.forEach((e, i) => { const x = F.L + (i + .5) * bw, y = F.sy(e); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+  }
+}
+
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const TEST_PHRASE = 'test test test test test test test test test test test junk';
+const ABANDON_PHRASE = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+const CAT = { gen: 'key generation', der: 'key derivation', pkc: 'public-key crypto', hash: 'hashing', sum: 'checksum', enc: 'encoding' };
+const catChips = list => `<div class="cats">${list.map(c => `<span class="cat ${c}">${CAT[c]}</span>`).join('')}</div>`;
+const LEVEL_NAMES = ['purpose', 'coin type (60 = Ethereum)', 'account', 'change (0 = receiving)', 'address index'];
+const hex64 = v => v.toString(16).padStart(64, '0');
+const short = (h, a = 10, b = 6) => h.length > a + b + 1 ? h.slice(0, a) + '…' + h.slice(-b) : h;
+const tick = () => new Promise(r => setTimeout(r, 0));
+const pct = (v, d = 1) => (100 * v).toFixed(d) + '%';
+function wilson(k, n, z = 1.96) {
+  const p = k / n, d = 1 + z * z / n, c = (p + z * z / (2 * n)) / d, h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d;
+  return [Math.max(0, c - h), Math.min(1, c + h)];
+}
+const erf = x => { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x); return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x)); };
+function chiP(chi, df) { const z = (Math.pow(chi / df, 1 / 3) - (1 - 2 / (9 * df))) / Math.sqrt(2 / (9 * df)); return 1 - 0.5 * (1 + erf(z / Math.SQRT2)); }
+const pfmt = v => v < 0.001 ? 'p < 0.001' : 'p ≈ ' + v.toFixed(2);
+const mean = a => a.reduce((s, v) => s + v, 0) / (a.length || 1);
+const sd = a => { const m = mean(a); return Math.sqrt(mean(a.map(v => (v - m) ** 2))); };
+function binomPmf(n, p) { const out = []; let c = Math.pow(1 - p, n); for (let k = 0; k <= n; k++) { out.push(c); c = c * (n - k) / (k + 1) * p / (1 - p); } return out; }
+
+/* ============================================================
+   THE PIPELINE
+   ============================================================ */
+async function runPipeline(words, passphrase, path) {
+  const check = await checkMnemonic(words);
+  if (!check.ok) return { error: check.reason };
+  const t0 = performance.now();
+  const seed = await mnemonicToSeed(words, passphrase);
+  const seedMs = performance.now() - t0;
+  let levels;
+  try { levels = await derivePath(seed, path); } catch (e) { return { error: e.message }; }
+  const k = levels[levels.length - 1].node.k;
+  const Q = EC.mulG(k);
+  const addr = pubToAddress(Q);
+  const eip = eip55(addr.lower);
+  return { words, check, passphrase, path, seed, seedMs, levels, k, Q, addr, eip };
+}
+
+const stage = (cc, title, cats, body, cls = '') =>
+  `<div class="stage ${cls}" style="--cc:var(--c-${cc})"><div class="stage-h"><h3>${title}</h3>${cats ? catChips(cats) : ''}</div>${body}</div>`;
+const arrow = (cc, op, how, cats) =>
+  `<div class="step-arrow" style="--cc:var(--c-${cc})"><div class="op">${op}</div><div class="how">${how}</div>${catChips(cats)}</div>`;
+
+function renderRail(r) {
+  const c = r.check, n = r.words.length;
+  const wordsHtml = r.words.map((w, i) => {
+    const bits = c.indices[i].toString(2).padStart(11, '0');
+    const b = [...bits].map((ch, j) => i * 11 + j >= c.ENT ? `<span class="cs">${ch}</span>` : ch).join('');
+    return `<div class="word"><span class="i">${i + 1}. index ${c.indices[i]}</span><div class="w">${w}</div><div class="b">${b}</div></div>`;
+  }).join('');
+  const std = r.levels.length === 6;
+  const pathRows = r.levels.slice(1).map((l, j) => `<tr><td>${l.label.split('/').pop()}</td><td>${std ? LEVEL_NAMES[j] : 'level ' + (j + 1)}</td><td>${l.index >= HARD ? 'hardened' : 'normal'}</td><td class="k">${short(hex64(l.node.k), 14, 6)}</td></tr>`).join('');
+  const x = hex64(r.Q.x), y = hex64(r.Q.y);
+  const cells = [...r.eip.address.slice(2)].map((ch, i) => {
+    const nib = r.eip.hash[i], letter = /[a-fA-F]/.test(ch);
+    return `<div class="cs-cell ${letter ? (ch === ch.toUpperCase() ? 'up' : 'low') : ''}">${ch}<small>${nib}</small></div>`;
+  }).join('');
+  const letters = (r.addr.lower.match(/[a-f]/g) || []).length, uppers = (r.eip.address.match(/[A-F]/g) || []).length;
+
+  $('rail').innerHTML = [
+    stage('gen', `Entropy: ${c.ENT} random bits`, ['gen'], `<div class="val">${toHex(c.entropy)}</div><p class="note">The only random step. A wallet draws these bits from a cryptographic random generator; for a phrase you typed, the page reads them back out of the words.</p>`),
+    arrow('sum', 'BIP-39: add a checksum, split into words', `Append the first ${c.CS} bits of SHA-256(entropy) as a checksum (blue below), cut the ${c.ENT + c.CS} bits into ${n} groups of 11, and look each group up in the list of 2048 words.`, ['sum', 'enc']),
+    stage('enc', `Mnemonic: ${n} words`, ['enc'], `<div class="wordgrid">${wordsHtml}</div><p class="note">${n} × 11 = ${c.ENT + c.CS} bits = ${c.ENT} bits of entropy + ${c.CS} checksum bits.</p>`),
+    arrow('der', 'BIP-39: stretch the words into a seed', `PBKDF2-HMAC-SHA512 with 2048 rounds; password = the words, salt = "mnemonic"${r.passphrase ? ' + your passphrase' : ' (no passphrase)'}. Your browser took ${r.seedMs.toFixed(1)} ms; every guess costs an attacker the same 2,048 rounds.`, ['der']),
+    stage('der', 'Seed: 512 bits', null, `<div class="val">${toHex(r.seed)}</div>`),
+    arrow('der', 'BIP-32: master key', 'HMAC-SHA512 with the key "Bitcoin seed". The left 32 bytes become the master private key, the right 32 bytes the chain code.', ['der']),
+    stage('der', 'Master private key and chain code', null, `<div class="val"><span class="dim">key</span> ${hex64(r.levels[0].node.k)}<br><span class="dim">chain code</span> ${toHex(r.levels[0].node.c)}</div>`),
+    arrow('der', `BIP-44: follow the path ${r.path}`, 'One HMAC-SHA512 per level. Hardened levels (\') hash the parent private key, normal levels hash the parent public key.', ['der']),
+    stage('der', 'Derivation path', null, `<div class="scroll"><table class="pathtbl"><thead><tr><th>Level</th><th>Meaning</th><th>Type</th><th>Private key</th></tr></thead><tbody>${pathRows}</tbody></table></div>`),
+    stage('der', 'Private key: 256 bits', null, `<div class="val">${hex64(r.k)}</div>`),
+    arrow('pkc', 'secp256k1: public key Q = k·G', 'Scalar multiplication on y² = x³ + 7 over a 256-bit prime field: easy forward, infeasible backward.', ['pkc']),
+    stage('pkc', 'Public key: the point (x, y)', null, `<div class="val"><span class="dim">x</span> ${x}<br><span class="dim">y</span> ${y}</div><p class="note">Uncompressed form 04 ‖ x ‖ y (65 bytes). Compressed form ${(r.Q.y & 1n) ? '03' : '02'} ‖ x (33 bytes), since y is fixed by x up to its sign.</p>`),
+    arrow('hash', 'Keccak-256, keep the last 20 bytes', 'Hash the 64 bytes x ‖ y and keep the last 20 bytes (highlighted) as the address.', ['hash']),
+    stage('hash', 'Address: 160 bits', null, `<div class="val"><span class="dim">${r.addr.hash.slice(0, 24)}</span><span class="hl">${r.addr.hash.slice(24)}</span></div><div class="val" style="margin-top:.3rem">0x${r.addr.lower}</div>`),
+    arrow('sum', 'EIP-55: hide a checksum in the letter case', 'Hash the lowercase hex address with Keccak-256. A letter becomes uppercase when the hash digit at the same position (small number) is 8 or more.', ['sum', 'enc']),
+    stage('sum', 'Checksummed address', null, `<div class="bigaddr">${r.eip.address}</div><div class="cs-grid">${cells}</div><p class="note">${letters} letters, so ${letters} check bits: ${uppers} uppercase, ${letters - uppers} lowercase. Digits carry no check bit.</p>`, 'final')
+  ].join('');
+}
+
+/* hero: the test phrase, step by step */
+function renderHero(r) {
+  const nodes = [
+    ['Mnemonic', r.words.slice(0, 3).join(' ') + ' … ' + r.words[r.words.length - 1]],
+    ['Seed', short(toHex(r.seed), 18, 6)],
+    ['Private key', short(hex64(r.k), 18, 6)],
+    ['Public key', short(hex64(r.Q.x) + hex64(r.Q.y), 18, 6)],
+    ['Address', '0x' + short(r.addr.lower, 14, 6)],
+    ['Checksummed address', r.eip.address]
+  ];
+  const arrows = [['der', 'BIP-39'], ['der', 'BIP-32 / BIP-44'], ['pkc', 'secp256k1'], ['hash', 'Keccak-256'], ['sum', 'EIP-55']];
+  let html = '';
+  nodes.forEach(([t, v], i) => {
+    html += `<div class="hnode${i === nodes.length - 1 ? ' final' : ''}"><b>${t}</b><span>${v}</span></div>`;
+    if (i < arrows.length) html += `<div class="harrow" style="border-left-color:var(--c-${arrows[i][0]})"><span class="cat ${arrows[i][0]}">${arrows[i][1]}</span></div>`;
+  });
+  $('heroRail').innerHTML = html;
+  const els = [...$('heroRail').children];
+  els.forEach((el, i) => reduceMotion ? el.classList.add('on') : setTimeout(() => el.classList.add('on'), 150 + i * 170));
+}
+
+/* lab */
+const LAB = { result: null };
+async function runLab() {
+  const msg = $('labMsg');
+  msg.className = 'lab-msg'; msg.textContent = 'Computing…';
+  const words = normalizePhrase($('mn').value);
+  const r = await runPipeline(words, $('pp').value, $('path').value);
+  if (r.error) { msg.className = 'lab-msg err'; msg.textContent = r.error; return null; }
+  LAB.result = r;
+  msg.textContent = `Valid ${words.length}-word phrase. Path ${r.path}, address ${r.eip.address}.`;
+  renderRail(r);
+  console.log('%cPipeline', 'font-weight:bold', { mnemonic: words.join(' '), seed: toHex(r.seed), path: r.path, privateKey: hex64(r.k), address: r.eip.address });
+  return r;
+}
+async function newPhrase(bytes) {
+  const e = new Uint8Array(bytes); crypto.getRandomValues(e);
+  const m = await entropyToMnemonic(Array.from(e));
+  $('mn').value = m.words.join(' '); $('pp').value = '';
+  runLab();
+}
+$('labRun').addEventListener('click', runLab);
+$('path').addEventListener('keydown', e => { if (e.key === 'Enter') runLab(); });
+$('pp').addEventListener('keydown', e => { if (e.key === 'Enter') runLab(); });
+$('labTest').addEventListener('click', () => { $('mn').value = TEST_PHRASE; $('pp').value = ''; $('path').value = "m/44'/60'/0'/0/0"; runLab(); });
+$('labAbandon').addEventListener('click', () => { $('mn').value = ABANDON_PHRASE; $('pp').value = ''; $('path').value = "m/44'/60'/0'/0/0"; runLab(); });
+$('labNew12').addEventListener('click', () => newPhrase(16));
+$('labNew24').addEventListener('click', () => newPhrase(32));
+
+/* ============================================================
+   STATISTICS
+   ============================================================ */
+const ST = { running: false, started: false, ent: 12, draw: null };
+const ENTROPY_STAGES = {
+  12: [['Entropy', 128, 128, 'gen'], ['Mnemonic (12 words)', 132, 128, 'enc'], ['Seed', 512, 128, 'der'], ['Master key + chain code', 512, 128, 'der'], ['Private key', 256, 128, 'der'], ['Public key (x, y)', 512, 128, 'pkc'], ['Address', 160, 128, 'hash'], ['Checksummed address', 175, 128, 'sum']],
+  24: [['Entropy', 256, 256, 'gen'], ['Mnemonic (24 words)', 264, 256, 'enc'], ['Seed', 512, 256, 'der'], ['Master key + chain code', 512, 256, 'der'], ['Private key', 256, 256, 'der'], ['Public key (x, y)', 512, 256, 'pkc'], ['Address', 160, 160, 'hash'], ['Checksummed address', 175, 160, 'sum']]
+};
+function drawEntropy() {
+  const rows = ENTROPY_STAGES[ST.ent], cv = $('chEntropy');
+  const { ctx, w, h } = setupCanvas(cv);
+  ctx.font = `12px ${css('--sans')}`;
+  const labelW = Math.max(...rows.map(r => ctx.measureText(r[0]).width));
+  const narrow = w < 560, L = narrow ? 8 : Math.min(300, labelW + 26), R = 16, T = 8, rowH = (h - T - 10) / rows.length, maxB = 540;
+  const sx = v => L + (narrow ? 0 : 0) + v / maxB * (w - L - R);
+  ctx.textBaseline = 'middle';
+  rows.forEach(([name, size, ent, cat], i) => {
+    const yMid = T + rowH * (i + .5), bh = Math.min(22, rowH * .5);
+    const col = css(`--c-${cat}`);
+    const yBar = narrow ? yMid + 4 : yMid - bh / 2;
+    if (narrow) { ctx.fillStyle = css('--ink'); ctx.textAlign = 'left'; ctx.fillText(name, L, yMid - bh / 2 - 5); }
+    else { ctx.fillStyle = css('--ink'); ctx.textAlign = 'right'; ctx.fillText(name, L - 12, yMid); }
+    ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.strokeRect(sx(0), yBar, sx(size) - sx(0), narrow ? bh * .8 : bh);
+    ctx.fillStyle = hexA(col.startsWith('#') ? col : '#0B7A6E', .85); ctx.fillRect(sx(0), yBar, sx(ent) - sx(0), narrow ? bh * .8 : bh);
+    ctx.fillStyle = css('--muted'); ctx.textAlign = 'left'; ctx.font = `11px ${css('--sans')}`;
+    const label = name.startsWith('Checksummed') ? `160 + ~15 case bits, entropy ${ent}` : `${size} bits, entropy ${ent}`;
+    const tw = ctx.measureText(label).width, ly = narrow ? yBar + bh * .4 : yMid;
+    if (sx(size) + 8 + tw <= w - R) ctx.fillText(label, sx(size) + 8, ly);
+    else { ctx.textAlign = 'right'; ctx.fillText(label, sx(size) - 8, ly); }
+    ctx.font = `12px ${css('--sans')}`;
+  });
+  $('vdEntropy').innerHTML = ST.ent === 12
+    ? 'With 12 words every value carries exactly 128 bits of entropy, however long it is. The 4 checksum bits, the 512-bit seed and the 512-bit public key are redundancy, not extra security. An attacker who guesses the words gets everything.'
+    : 'With 24 words there are 256 bits of entropy up to the public key, but the address keeps only 160 bits: hashing can preserve or lose entropy, never add it. 160 bits is still far beyond any brute-force search.';
+}
+$('ent12').addEventListener('click', () => { ST.ent = 12; $('ent12').classList.add('on'); $('ent24').classList.remove('on'); drawEntropy(); });
+$('ent24').addEventListener('click', () => { ST.ent = 24; $('ent24').classList.add('on'); $('ent12').classList.remove('on'); drawEntropy(); });
+redrawers.push(drawEntropy);
+
+/* four classic tests (the NIST SP 800-22 family) on a byte array */
+const erfc = x => 1 - erf(x);
+function randomnessTests(buf) {
+  const N = buf.length, n = 8 * N, counts = new Array(256).fill(0);
+  let ones = 0, trans = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
+  for (let i = 0; i < N; i++) {
+    const v = buf[i]; counts[v]++; ones += popcount8[v];
+    trans += popcount8[(v ^ (v >> 1)) & 0x7F];                  // changes inside the byte
+    if (i > 0) { trans += ((buf[i - 1] & 1) !== (v >> 7)) ? 1 : 0; // change across bytes
+      const x = buf[i - 1]; sx += x; sy += v; sxx += x * x; syy += v * v; sxy += x * v; }
+  }
+  const zMono = (2 * ones - n) / Math.sqrt(n), pMono = erfc(Math.abs(zMono) / Math.SQRT2);
+  const exp = N / 256, chi = counts.reduce((s, c) => s + (c - exp) ** 2 / exp, 0), pChi = chiP(chi, 255);
+  const pi = ones / n, runs = trans + 1;
+  const pRuns = erfc(Math.abs(runs - 2 * n * pi * (1 - pi)) / (2 * Math.sqrt(2 * n) * pi * (1 - pi)));
+  const m = N - 1, r = (m * sxy - sx * sy) / Math.sqrt((m * sxx - sx * sx) * (m * syy - sy * sy));
+  return { N, counts, share: pi, pMono, chi, pChi, pRuns, r, rLim: 3 / Math.sqrt(m) };
+}
+function rngTest(seedVal) {
+  const N = 1 << 20, real = new Uint8Array(N), toy = new Uint8Array(N);
+  for (let off = 0; off < N; off += 65536) crypto.getRandomValues(real.subarray(off, off + 65536));
+  const g = mulberry32(seedVal + 99);
+  for (let i = 0; i < N; i++) toy[i] = Math.floor(g() * 256);
+  return { real: randomnessTests(real), toy: randomnessTests(toy) };
+}
+
+async function runStats() {
+  if (ST.running) return;
+  if (!subtle) { $('stStatus').textContent = 'These experiments need the Web Crypto API: open the page over https (for example on GitHub Pages).'; return; }
+  ST.running = true; ST.started = true; $('stRun').disabled = true;
+  const status = t => { $('stStatus').textContent = t; };
+  const t0 = performance.now();
+  const seedVal = Math.max(0, Math.floor(Number($('stSeed').value) || 0)); $('stSeed').value = seedVal;
+  const rng = mulberry32(seedVal);
+  const randIdx = () => Math.floor(rng() * 2048);
+  const randBytes = n => Array.from({ length: n }, () => Math.floor(rng() * 256));
+
+  // 0. the only random step
+  status('Testing the random generator…'); await tick();
+  const RNG = rngTest(seedVal);
+
+  // A. random word lists vs the checksum
+  status('Testing random word lists against the BIP-39 checksum…');
+  const TC = 16000; let v12 = 0, v24 = 0;
+  for (let b = 0; b < TC; b += 1000) {
+    const r12 = await Promise.all(Array.from({ length: 1000 }, () => indicesValid(Array.from({ length: 12 }, randIdx))));
+    const r24 = await Promise.all(Array.from({ length: 1000 }, () => indicesValid(Array.from({ length: 24 }, randIdx))));
+    v12 += r12.filter(Boolean).length; v24 += r24.filter(Boolean).length;
+  }
+  const labWords = LAB.result ? LAB.result.words : normalizePhrase(TEST_PHRASE);
+  const prefix = labWords.length === 12 ? labWords.slice(0, 11) : Array.from({ length: 11 }, () => BIP39_WORDS[randIdx()]);
+  const prefIdx = prefix.map(w => WORD_INDEX.get(w)), validLast = [];
+  for (let j = 0; j < 2048; j += 256) {
+    const res = await Promise.all(Array.from({ length: 256 }, (_, t) => indicesValid([...prefIdx, j + t])));
+    res.forEach((ok, t) => { if (ok) validLast.push(BIP39_WORDS[j + t]); });
+  }
+
+  // B. word frequency
+  status('Generating random phrases…');
+  const MW = 2000, wordBins = new Array(32).fill(0);
+  for (let b = 0; b < MW; b += 250) {
+    const res = await Promise.all(Array.from({ length: 250 }, () => entropyToMnemonic(randBytes(16))));
+    res.forEach(m => m.indices.forEach(i => wordBins[i >> 6]++));
+  }
+  const expW = MW * 12 / 32, chiW = wordBins.reduce((s, c) => s + (c - expW) ** 2 / expW, 0), pW = chiP(chiW, 31);
+
+  // C. avalanche through the pipeline
+  const TA = 120, P0 = "m/44'/60'/0'/0/0", dSeed = [], dKey = [], dAddr = [], wChanged = [];
+  for (let t = 0; t < TA; t++) {
+    const e1 = randBytes(16), e2 = e1.slice(), bit = Math.floor(rng() * 128);
+    e2[bit >> 3] ^= 1 << (7 - (bit & 7));
+    const [m1, m2] = await Promise.all([entropyToMnemonic(e1), entropyToMnemonic(e2)]);
+    wChanged.push(m1.words.filter((w, i) => w !== m2.words[i]).length);
+    const [s1, s2] = await Promise.all([mnemonicToSeed(m1.words, ''), mnemonicToSeed(m2.words, '')]);
+    const [l1, l2] = await Promise.all([derivePath(s1, P0), derivePath(s2, P0)]);
+    const k1 = l1[l1.length - 1].node.k, k2 = l2[l2.length - 1].node.k;
+    const a1 = fromHex(pubToAddress(EC.mulG(k1)).lower), a2 = fromHex(pubToAddress(EC.mulG(k2)).lower);
+    dSeed.push(hamming(s1, s2) / 512); dKey.push(hamming(bigToBytes(k1, 32), bigToBytes(k2, 32)) / 256); dAddr.push(hamming(a1, a2) / 160);
+    if (t % 10 === 9) { status(`Avalanche: trial ${t + 1} of ${TA}…`); await tick(); }
+  }
+
+  // D. many addresses from the lab phrase
+  status('Deriving addresses…');
+  const labPass = LAB.result ? LAB.result.passphrase : '';
+  const seedD = await mnemonicToSeed(labWords, labPass);
+  const parentLv = await derivePath(seedD, "m/44'/60'/0'/0"), parent = parentLv[parentLv.length - 1].node;
+  const ND = 500, addrs = [];
+  for (let b = 0; b < ND; b += 50) {
+    const kids = await Promise.all(Array.from({ length: 50 }, (_, j) => childKey(parent, b + j)));
+    kids.forEach(kn => addrs.push(eip55(pubToAddress(EC.mulG(kn.k)).lower).address.slice(2)));
+    status(`Deriving addresses: ${b + 50} of ${ND}…`); await tick();
+  }
+  const hexCount = new Array(16).fill(0), letterHist = new Array(41).fill(0);
+  let upper = 0, letterTot = 0;
+  for (const a of addrs) {
+    let L = 0;
+    for (const ch of a) { hexCount[parseInt(ch, 16)]++; if (/[a-fA-F]/.test(ch)) { L++; if (ch !== ch.toLowerCase()) upper++; } }
+    letterHist[L]++; letterTot += L;
+  }
+  const expH = ND * 40 / 16, chiH = hexCount.reduce((s, c) => s + (c - expH) ** 2 / expH, 0), pH = chiP(chiH, 15);
+
+  // E. typos vs EIP-55
+  const TT = 40000, HEX = '0123456789abcdef';
+  let acc = 0, expAcc = 0;
+  for (let t = 0; t < TT; t++) {
+    const a = addrs[Math.floor(rng() * ND)], pos = Math.floor(rng() * 40), old = a[pos].toLowerCase();
+    let nv; do { nv = HEX[Math.floor(rng() * 16)]; } while (nv === old);
+    const ch = /[a-f]/.test(nv) && rng() < 0.5 ? nv.toUpperCase() : nv;
+    const mut = a.slice(0, pos) + ch + a.slice(pos + 1);
+    expAcc += Math.pow(2, -(mut.match(/[a-fA-F]/g) || []).length);
+    if (eip55Valid(mut)) acc++;
+    if (t % 5000 === 4999) { status(`Typos: ${fmtN(t + 1)} of ${fmtN(TT)}…`); await tick(); }
+  }
+
+  const D = { RNG, TC, v12, v24, prefix, validLast, wordBins, expW, chiW, pW, MW, TA, dSeed, dKey, dAddr, wChanged, ND, hexCount, expH, chiH, pH, letterHist, upper, letterTot, TT, acc, expAcc, labWords };
+  ST.draw = () => drawStats(D);
+  ST.draw();
+  status(`Done in ${((performance.now() - t0) / 1000).toFixed(1)} s with seed ${seedVal}.`);
+  ST.running = false; $('stRun').disabled = false;
+}
+
+const ALPHA = 0.001;                      // significance level: a false alarm in about 1 of 250 runs of four tests
+function drawRng(R) {
+  const p = v => v < 0.001 ? 'p < 0.001' : 'p = ' + v.toFixed(2);
+  const cell = (ok, txt) => `<td class="${ok ? 'ok' : 'bad'}">${txt}</td>`;
+  const row = (name, what, f) => `<tr><td>${name}</td><td>${what}</td>${f(R.real)}${f(R.toy)}</tr>`;
+  $('rngTable').querySelector('tbody').innerHTML =
+    row('Frequency (monobit)', 'The share of 1 bits is ½.', t => cell(t.pMono > ALPHA, `${(100 * t.share).toFixed(3)}% ones, ${p(t.pMono)}`)) +
+    row('Byte frequency (χ², 255 df)', 'All 256 byte values are equally common.', t => cell(t.pChi > ALPHA, `χ² = ${t.chi.toFixed(1)}, ${p(t.pChi)}`)) +
+    row('Runs', 'Bits do not come in streaks that are too long or too short.', t => cell(t.pRuns > ALPHA, p(t.pRuns))) +
+    row('Serial correlation', 'One byte says nothing about the next one.', t => cell(Math.abs(t.r) < t.rLim, `r = ${t.r.toFixed(4)} (noise up to ±${t.rLim.toFixed(4)})`));
+  // deviation of each byte count from the uniform expectation, in standard deviations
+  const exp = R.real.N / 256, zs = t => t.counts.map(c => (c - exp) / Math.sqrt(exp * (1 - 1 / 256)));
+  const zr = zs(R.real), zt = zs(R.toy), within = zr.filter(z => Math.abs(z) <= 2).length / 256;
+  const F = frame($('chRng'), { xMin: -0.5, xMax: 255.5, yMin: -4, yMax: 4, xLabel: 'byte value', yLabel: 'z-score', xTicks: [0, 64, 128, 192, 255], yFmt: v => (v > 0 ? '+' : '') + v.toFixed(0) });
+  const ctx = F.ctx, bw = F.pw / 256, clip = z => Math.max(-4, Math.min(4, z)), gen = css('--c-gen');
+  ctx.fillStyle = hexA(css('--muted').startsWith('#') ? css('--muted') : '#5E625F', .12);
+  ctx.fillRect(F.L, F.sy(2), F.pw, F.sy(-2) - F.sy(2));
+  ctx.fillStyle = hexA(gen.startsWith('#') ? gen : '#B87C12', .8);
+  zr.forEach((z, i) => { const y0 = F.sy(0), y = F.sy(clip(z)); ctx.fillRect(F.L + i * bw, Math.min(y0, y), Math.max(1, bw - .6), Math.abs(y - y0)); });
+  ctx.strokeStyle = css('--c-enc'); ctx.lineWidth = 1.2; ctx.beginPath();
+  zt.forEach((z, i) => { const x = F.L + (i + .5) * bw, y = F.sy(clip(z)); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke();
+  ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(F.L, F.sy(0)); ctx.lineTo(F.L + F.pw, F.sy(0)); ctx.stroke();
+  const pass = t => t.pMono > ALPHA && t.pChi > ALPHA && t.pRuns > ALPHA && Math.abs(t.r) < t.rLim;
+  $('vdRng').innerHTML = `${(100 * within).toFixed(0)}% of the 256 byte counts lie within ±2 standard deviations of the expectation (about 95% is what chance predicts). ${pass(R.real) ? 'The browser generator passes all four tests' : 'The browser generator failed a test in this run; at the 0.1% level this happens by chance about once in 250 runs, so reload to check'}, and ${pass(R.toy) ? 'so does mulberry32' : 'mulberry32 failed one in this run'}. That is the point: a statistical test can only find patterns, it cannot prove that numbers are unpredictable. Anyone who knows mulberry32's 32-bit seed can reproduce every byte, so it must never create keys. In 2023 the "Milk Sad" flaw in the Libbitcoin Explorer tool showed exactly this: wallets whose seeds came from a generator started with only 32 bits of the clock were found and emptied.`;
+  return pass;
+}
+
+function drawStats(D) {
+  const passRng = drawRng(D.RNG);
+  // A. checksum
+  const ci12 = wilson(D.v12, D.TC), ci24 = wilson(D.v24, D.TC);
+  $('factCheck').innerHTML = `
+    <div class="fact"><b>${pct(D.v12 / D.TC, 2)}</b><span>of ${fmtN(D.TC)} random 12-word lists are valid (95% CI ${pct(ci12[0], 2)}–${pct(ci12[1], 2)}); expected 1/16 = 6.25%</span></div>
+    <div class="fact"><b>${pct(D.v24 / D.TC, 2)}</b><span>of ${fmtN(D.TC)} random 24-word lists are valid (95% CI ${pct(ci24[0], 2)}–${pct(ci24[1], 2)}); expected 1/256 = 0.39%</span></div>`;
+  const lastOrig = D.labWords.length === 12 ? D.labWords[11] : null;
+  const shown = (lastOrig && D.validLast.includes(lastOrig) ? [lastOrig, ...D.validLast.filter(w => w !== lastOrig)] : D.validLast).slice(0, 40);
+  $('lastWordText').innerHTML = `For the 11 words <em>${D.prefix.slice(0, 3).join(' ')} … ${D.prefix[10]}</em>${D.labWords.length === 12 ? ' (the start of the phrase in section 1)' : ''}, exactly <strong>${D.validLast.length} of the 2048</strong> possible last words give a valid phrase. The last word carries 7 bits of entropy and 4 checksum bits, and 2⁷ = 128. Some of them${lastOrig && D.validLast.includes(lastOrig) ? `, including "${lastOrig}"` : ''}:`;
+  $('lastWords').innerHTML = shown.map(w => `<span${w === lastOrig ? ' style="border-color:var(--key);color:var(--key);font-weight:700"' : ''}>${w}</span>`).join('') + (D.validLast.length > shown.length ? `<span>… ${D.validLast.length - shown.length} more</span>` : '');
+
+  // B. words
+  histChart($('chWords'), { series: [{ counts: D.wordBins, color: hexA(css('--c-enc').startsWith('#') ? css('--c-enc') : '#61746F', .75) }], expected: new Array(32).fill(D.expW), cat: [0, 8, 16, 24, 31], xFmt: v => String(Math.round(v) * 64), xLabel: 'first word index of each block', yLabel: 'words' });
+  $('vdWords').innerHTML = `${fmtN(D.MW * 12)} words from ${fmtN(D.MW)} random phrases. χ² = ${D.chiW.toFixed(1)} with 31 degrees of freedom, ${pfmt(D.pW)}: no evidence against a uniform choice of words. Encoding keeps the uniform randomness of the entropy, and even the last word, partly made of checksum bits, follows it because SHA-256 output looks uniform.`;
+
+  // C. avalanche
+  const bins = 30, lo = 0.35, hi = 0.65;
+  const hist = arr => { const h = new Array(bins).fill(0); arr.forEach(v => { const i = Math.min(bins - 1, Math.max(0, Math.floor((v - lo) / (hi - lo) * bins))); h[i] += 100 / arr.length; }); return h; };
+  histChart($('chAva'), {
+    series: [
+      { counts: hist(D.dSeed), color: css('--c-der'), style: 'stairs' },
+      { counts: hist(D.dKey), color: css('--c-gen'), style: 'stairs' },
+      { counts: hist(D.dAddr), color: css('--c-hash'), style: 'stairs' }
+    ], xMin: lo, xMax: hi, xFmt: v => Math.round(v * 100) + '%', xLabel: 'share of bits that changed', yLabel: '% of trials'
+  });
+  const row = (name, col, arr, n) => `<span style="color:var(${col});font-weight:700">${name}</span>: mean ${pct(mean(arr))}, spread ${pct(sd(arr))} (a coin flip per bit gives ${pct(Math.sqrt(0.25 / n))})`;
+  const w1 = D.wChanged.filter(v => v === 1).length;
+  $('vdAva').innerHTML = `Over ${D.TA} trials (${w1} changed one word, ${D.TA - w1} changed two, because the checksum word moves too): ${row('seed', '--c-der', D.dSeed, 512)}; ${row('private key', '--c-gen', D.dKey, 256)}; ${row('address', '--c-hash', D.dAddr, 160)}. Every step after the first behaves like a random function: a tiny change in the input gives an unrelated output.`;
+
+  // D. digits
+  histChart($('chHex'), { series: [{ counts: D.hexCount, color: hexA(css('--c-hash').startsWith('#') ? css('--c-hash') : '#5A50C2', .75) }], expected: new Array(16).fill(D.expH), cat: Array.from({ length: 16 }, (_, i) => i), xFmt: v => Math.round(v).toString(16), xLabel: 'hex digit', yLabel: 'count' });
+  $('vdHex').innerHTML = `${fmtN(D.ND * 40)} digits from ${fmtN(D.ND)} addresses. χ² = ${D.chiH.toFixed(1)} with 15 degrees of freedom, ${pfmt(D.pH)}: the digits of Keccak-256 output are uniform, as expected from a hash.`;
+  const pmf = binomPmf(40, 6 / 16).map(q => q * D.ND);
+  histChart($('chLetters'), { series: [{ counts: D.letterHist, color: hexA(css('--c-sum').startsWith('#') ? css('--c-sum') : '#2B73B0', .7) }], curve: pmf, cat: [0, 5, 10, 15, 20, 25, 30, 35, 40], xLabel: 'letters a–f in the address', yLabel: 'addresses' });
+  $('vdLetters').innerHTML = `Mean ${(D.letterTot / D.ND).toFixed(2)} letters per address (expected 40 × 6/16 = 15). Of all ${fmtN(D.letterTot)} letters, ${pct(D.upper / D.letterTot)} are uppercase, close to the 50% that a uniform hash predicts. So an address carries about 15 check bits, but the number varies from address to address.`;
+
+  // E. typos
+  const ciT = wilson(D.acc, D.TT);
+  $('factTypo').innerHTML = `
+    <div class="fact"><b>${fmtN(D.TT)}</b><span>one-character typos tried</span></div>
+    <div class="fact"><b>${D.acc}</b><span>passed the EIP-55 check (expected ${D.expAcc.toFixed(1)} from the letter counts)</span></div>
+    <div class="fact"><b>${(D.acc / D.TT * 1e4).toFixed(1)}</b><span>missed per 10,000 typos (95% CI ${(ciT[0] * 1e4).toFixed(1)}–${(ciT[1] * 1e4).toFixed(1)}); theory 2.45</span></div>`;
+  const pp = v => v < 0.001 ? 'p < 0.001' : 'p ≈ ' + v.toFixed(2);
+  $('ssRng').textContent = passRng(D.RNG.real) ? 'all four tests passed (0.1% level)' : 'one test failed in this run (by chance about once in 250 runs)';
+  $('ssWords').textContent = `χ² over 32 groups, ${pp(D.pW)}`;
+  $('ssCheck').textContent = `12 words: ${pct(D.v12 / D.TC, 2)} pass (1/16 = 6.25%); 24 words: ${pct(D.v24 / D.TC, 2)} (1/256 = 0.39%)`;
+  $('ssDer').textContent = `seed ${pct(mean(D.dSeed))}, private key ${pct(mean(D.dKey))} of bits changed`;
+  $('ssHash').textContent = `digits ${pp(D.pH)}; address ${pct(mean(D.dAddr))} of bits changed`;
+  $('ssTypo').textContent = `${(D.acc / D.TT * 1e4).toFixed(1)} missed per 10,000 (theory 2.45)`;
+  $('vdTypo').innerHTML = `So EIP-55 catches about 99.97% of single-character typos. The check only works when the case is kept: an address written all in lowercase or all in uppercase is treated as "no checksum" and accepted as it is. And a checksum is not a security measure: someone who replaces an address on purpose simply computes the correct case for the new one.`;
+}
+$('stRun').addEventListener('click', runStats);
+redrawers.push(() => ST.draw && ST.draw());
+new IntersectionObserver((es, obs) => { if (es.some(e => e.isIntersecting) && !ST.started) { obs.disconnect(); setTimeout(runStats, 300); } }, { rootMargin: '200px' }).observe($('stats'));
+
+/* ============================================================
+   HISTORY
+   ============================================================ */
+const EVENTS = [
+  [1977, 'RSA', 'Rivest, Shamir and Adleman publish the first practical public-key system.', 'hw'],
+  [1985, 'Elliptic curves', 'Koblitz and Miller independently propose elliptic curves for public-key cryptography.', 'ctx'],
+  [2000, 'PBKDF2, SEC 2', 'PBKDF2 is published (RFC 2898); SEC 2 defines standard curves, including secp256k1.', 'ctx'],
+  [2001, 'SHA-2', 'NIST publishes the SHA-2 family, including SHA-256 and SHA-512, as a draft; the final standard (FIPS 180-2) follows in 2002.', 'hw'],
+  [2009, 'Bitcoin', 'Bitcoin launches with secp256k1 and SHA-256: private keys now hold money, and backing them up becomes a real problem.', 'ctx'],
+  [2012, 'BIP-32', 'Hierarchical deterministic wallets: one seed, a whole tree of keys.', 'hw'],
+  [2012, 'Keccak wins', 'Keccak is selected as the winner of the NIST SHA-3 competition.', 'ctx'],
+  [2013, 'BIP-39', 'Mnemonic phrases turn the seed into words a person can write down.', 'hw'],
+  [2014, 'BIP-44', 'A standard layout of derivation paths, so every wallet finds the same keys.', 'hw'],
+  [2015, 'Ethereum', 'Ethereum launches in July with secp256k1 and Keccak-256.', 'ctx'],
+  [2015, 'SHA-3', 'NIST publishes FIPS 202 in August; its padding differs from the Keccak used by Ethereum.', 'hw'],
+  [2016, 'EIP-55', 'Mixed-case checksum addresses for Ethereum.', 'hw']
+];
+function buildTimeline() {
+  $('tlList').innerHTML = EVENTS.map(([y, n, d, k]) => `<div class="tl-item ${k}"><span class="y">${y}</span><p><strong>${n}</strong> ${k === 'ctx' ? '<span class="tag part">context</span>' : ''}<br>${d}</p></div>`).join('');
+  // two linear segments: 1975–2002 on the left 36%, 2008–2017 on the right 58%, with a visible break
+  const X = yr => yr <= 2004 ? 3 + (yr - 1975) / (2002 - 1975) * 33 : 42 + (yr - 2008) / (2017 - 2008) * 55;
+  const slots = [38, 84, 2, 118], lastX = [-99, -99, -99, -99];
+  $('tlStrip').innerHTML = '<div class="tl-axis"></div><div class="tl-break" style="left:39%"></div>' + EVENTS.map(([y, n, , k], i) => {
+    const same = EVENTS.filter(e => e[0] === y), off = same.length > 1 ? (same.indexOf(EVENTS[i]) - (same.length - 1) / 2) * 0.6 : 0;
+    const x = X(y + off);
+    let s = slots.findIndex((_, j) => x - lastX[j] > 8.2); if (s < 0) s = slots.length - 1; lastX[s] = x;
+    return `<div class="tl-ev ${k}" style="left:${x}%;top:0;height:100%"><i></i><div style="position:absolute;left:0;right:0;top:${slots[s]}px"><b>${y}</b>${n}</div></div>`;
+  }).join('');
+}
+buildTimeline();
+
+/* hash demo: SHA-256, SHA-512, Keccak-256, SHA3-256 */
+function padHtml(len, d) {
+  const used = len % 136, rest = 136 - used, msg = Math.min(used, 6);
+  let html = used > msg ? '<span>…</span>' : '';
+  for (let i = 0; i < msg; i++) html += '<span>m</span>';
+  if (rest === 1) return html + `<span class="${d === 1 ? 'e' : 'd'}">${(d | 0x80).toString(16)}</span>`;
+  html += `<span class="${d === 1 ? 'e' : 'd'}">${d.toString(16).padStart(2, '0')}</span>`;
+  html += `<span>00 × ${rest - 2}</span><span class="${d === 1 ? 'e' : 'd'}">80</span>`;
+  return html;
+}
+async function runHashDemo() {
+  const b = utf8($('hin').value);
+  const s256 = subtle ? toHex(await sha256(b)) : 'needs https';
+  const s512 = subtle ? toHex(await sha512(b)) : 'needs https';
+  $('hout').innerHTML = `
+    <div class="row"><span>SHA-256</span><code>${s256}</code></div>
+    <div class="row"><span>SHA-512</span><code>${s512}</code></div>
+    <div class="row"><span>Keccak-256</span><div><code>${toHex(keccak256(b))}</code><div class="pad" title="last block before the permutation">${padHtml(b.length, 1)}</div></div></div>
+    <div class="row"><span>SHA3-256</span><div><code>${toHex(sha3_256(b))}</code><div class="pad">${padHtml(b.length, 6)}</div></div></div>
+    <p class="small" style="margin:.6rem 0 0">The coloured bytes show the end of the last 136-byte block: m = message bytes, then the padding. Only that first padding byte differs (01 for Keccak, 06 for SHA-3), and the outputs have nothing in common.</p>`;
+}
+$('hin').addEventListener('input', runHashDemo);
+
+/* ============================================================
+   NAV + INIT
+   ============================================================ */
+(() => {
+  const links = [...document.querySelectorAll('.nav a')];
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id));
+  }), { rootMargin: '-45% 0px -50% 0px' });
+  document.querySelectorAll('section.task').forEach(s => io.observe(s));
+})();
+
+(async () => {
+  drawEntropy();
+  runHashDemo();
+  if (!subtle) {
+    $('labMsg').className = 'lab-msg err';
+    $('labMsg').textContent = 'This page needs the Web Crypto API, which browsers only allow on secure pages. Open it over https, for example on GitHub Pages.';
+    return;
+  }
+  const r = await runLab();
+  if (r) renderHero(r);
+})();
+</script>
+</body>
+</html>
