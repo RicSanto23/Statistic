@@ -49,15 +49,6 @@
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #161A20; --paper-2: #1C2128; --sheet: #20262E; --ink: #E8ECEF; --muted: #A0A9B3; --rule: #333B45; --line: #5E6873; --on-fill: #E8ECEF;
-    --key: #5FD0BC; --key-fill: #1E3B38; --key-deep: #5FD0BC; --pub: #F291AD; --pub-fill: #43273A;
-    --step: #E9C066; --step-ink: #E9C066; --step-fill: #3E3423; --hash: #AFA9F7; --hash-fill: #2C2B4C; --hash-soft: rgba(175, 169, 247, .14);
-    --shadow-c: #0B0D11;
-    color-scheme: dark;
-  }
-}
 :root[data-theme="dark"] {
   --paper: #161A20; --paper-2: #1C2128; --sheet: #20262E; --ink: #E8ECEF; --muted: #A0A9B3; --rule: #333B45; --line: #5E6873; --on-fill: #E8ECEF;
   --key: #5FD0BC; --key-fill: #1E3B38; --key-deep: #5FD0BC; --pub: #F291AD; --pub-fill: #43273A;
@@ -177,15 +168,6 @@ h3 { font-family: var(--display); font-size: 1.65rem; line-height: 1.1; margin: 
 .hero-cap { font-family: var(--mono); font-size: .72rem; color: var(--muted); margin-top: 2.4rem; max-width: 52ch; line-height: 1.6; }
 .replay { font: inherit; font-weight: 700; cursor: pointer; color: var(--on-fill); background: var(--step-fill); border: 2px solid var(--line); padding: .05rem .5rem; margin-left: .3rem; box-shadow: 2px 2px 0 var(--shadow-c); }
 .replay:active { transform: translate(2px, 2px); box-shadow: none; }
-
-/* ticker band */
-.ticker { overflow: hidden; border-block: var(--bw) solid var(--line); background: var(--ink); color: var(--paper); transform: rotate(-.6deg); margin: 0; }
-.ticker-track { display: flex; width: max-content; animation: tick 38s linear infinite; }
-.ticker span { font-family: var(--mono); font-size: .82rem; font-weight: 600; padding: .55rem 1.3rem; white-space: nowrap; }
-.ticker span::after { content: "◆"; margin-left: 2.6rem; color: var(--key-fill); }
-.ticker:hover .ticker-track { animation-play-state: paused; }
-@keyframes tick { to { transform: translateX(-50%); } }
-@media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
 
 /* ---------- summary ---------- */
 #summary { padding-block: 4.2rem 0; }
@@ -404,7 +386,7 @@ footer strong { color: var(--ink); background: var(--key-fill); color: var(--on-
    amber = the current step, indigo = Keccak-256.
    ===================================================================== */
 body { background-image: radial-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1.4px); }
-.hero h1 .h-priv, .hero h1 .h-pub, .window, .sticker, .ticker, .task-num, section.task:nth-of-type(2n) .task-num,
+.hero h1 .h-priv, .hero h1 .h-pub, .window, .sticker, .task-num, section.task:nth-of-type(2n) .task-num,
 .sum-sticker, .result .lbl, .callout, .rel:nth-child(2) { transform: none; }
 ::-webkit-scrollbar-thumb { background: var(--rule); border-width: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
@@ -431,8 +413,6 @@ a:hover { background: none; color: var(--key); }
 .sticker-q { border-left: 6px solid var(--pub); } .sticker-q small { color: var(--pub); opacity: 1; }
 .sticker-k { border-left: 6px solid var(--key); } .sticker-k small { color: var(--key); opacity: 1; }
 .replay { background: var(--sheet); color: var(--ink); box-shadow: none; }
-.ticker { background: var(--paper-2); color: var(--ink); border-color: var(--rule); }
-.ticker span::after { color: var(--muted); }
 
 /* summary */
 .summary-box { box-shadow: var(--sh-lg); }
@@ -505,7 +485,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
 
 /* ---------- print ---------- */
 @media print {
-  .bar, .controls, .subnav, .theme-btn, .replay, button, .ticker, .sticker { display: none !important; }
+  .bar, .controls, .subnav, .theme-btn, .replay, button, .sticker { display: none !important; }
   body { background: #fff; color: #000; font-size: 10.5pt; }
   section.task { display: block; padding-block: 1.5rem .5rem; }
   .task-head { position: static; }
@@ -588,10 +568,6 @@ footer strong { background: none; color: var(--ink); padding: 0; }
   </div>
 </section>
 
-<div class="ticker" aria-hidden="true"><div class="ticker-track">
-  <span>Q = kG</span><span>y² = x³ + 7 (mod 17)</span><span>G = (1, 5)</span><span>k = 6</span><span>Q = (5, 8)</span><span>ord(G) = 9</span><span>secp256k1</span><span>n ≈ 1.16 × 10⁷⁷</span><span>ECDLP</span><span>Keccak-256</span>
-  <span>Q = kG</span><span>y² = x³ + 7 (mod 17)</span><span>G = (1, 5)</span><span>k = 6</span><span>Q = (5, 8)</span><span>ord(G) = 9</span><span>secp256k1</span><span>n ≈ 1.16 × 10⁷⁷</span><span>ECDLP</span><span>Keccak-256</span>
-</div></div>
 
 <!-- ================= SUMMARY ================= -->
 <section class="wrap" id="summary" aria-labelledby="summary-title">
@@ -1178,14 +1154,14 @@ function hexA(color, a) {                 // '#rrggbb' -> rgba
 /* theme toggle */
 (() => {
   const root = document.documentElement;
-  try { const t = localStorage.getItem('ec-theme'); if (t) root.dataset.theme = t; } catch (e) {}
+  // the site opens in light mode; a switch to dark is kept only while moving between pages in this visit
+  try { const t = sessionStorage.getItem('ec-theme'); if (t) root.dataset.theme = t; } catch (e) {}
   $('themeBtn').addEventListener('click', () => {
-    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    const dark = root.dataset.theme === 'dark';
     root.dataset.theme = dark ? 'light' : 'dark';
-    try { localStorage.setItem('ec-theme', root.dataset.theme); } catch (e) {}
+    try { sessionStorage.setItem('ec-theme', root.dataset.theme); } catch (e) {}
     redrawers.forEach(f => f());
   });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => redrawers.forEach(f => f()));
   let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => redrawers.forEach(f => f()), 120); });
 })();
 
