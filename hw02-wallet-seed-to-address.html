@@ -3,14 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Homework 1, exercise 2: from wallet seed to Ethereum address</title>
-<meta name="description" content="Homework 1, exercise 2 by Riccardo Santoni: the Ethereum wallet pipeline rebuilt in the browser (BIP-39, BIP-32, BIP-44, secp256k1, Keccak-256, EIP-55), with statistics and history.">
+<title>Homework 2: from wallet seed to Ethereum address</title>
+<meta name="description" content="Homework 2 by Riccardo Santoni: the Ethereum wallet pipeline rebuilt in the browser (BIP-39, BIP-32, BIP-44, secp256k1, Keccak-256, EIP-55), with statistics and history.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='80' fill='%23C3C6C1'/><rect x='4' y='4' width='80' height='80' fill='%231F2120'/><text x='44' y='58' font-size='36' text-anchor='middle' font-family='Menlo,monospace' font-weight='bold' fill='%23F8F8F6'>0x</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gloock&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Schibsted+Grotesk:ital,wght@0,400..800;1,400..800&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
 <style>
-
+/* =====================================================================
+   NEOBRUTALIST / WEB3 THEME
+   Flat fills, thick ink outlines and hard offset shadows; an elegant
+   high-contrast serif (Gloock) for headings, a technical monospace
+   (Martian Mono) for every number, label and control.
+   Colour roles: mint/teal = private (k, G) · pink = public (Q) ·
+   yellow = what is happening now · violet = the Keccak-256 control.
+   The script reads --ink, --muted, --rule, --sheet, --key, --pub, --step,
+   --hash and --sans for the canvases, so these stay plain #rrggbb / font lists.
+   ===================================================================== */
 :root {
   /* neutral greys; colour only where it carries meaning */
   --paper: #ECEDEA;
@@ -371,6 +380,11 @@ footer { margin-top: 6rem; padding-block: 1.6rem 3rem; border-top: var(--bw) sol
 footer strong { color: var(--ink); background: var(--key-fill); color: var(--on-fill); padding: 0 .3rem; }
 
 
+/* =====================================================================
+   CALM VERSION: same layout, neutral surfaces, nothing tilted.
+   Colour is kept only for meaning: teal = private, raspberry = public,
+   amber = the current step, indigo = Keccak-256.
+   ===================================================================== */
 body { background-image: radial-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1.4px); }
 .hero h1 .h-priv, .hero h1 .h-pub, .window, .sticker, .task-num, section.task:nth-of-type(2n) .task-num,
 .sum-sticker, .result .lbl, .callout, .rel:nth-child(2) { transform: none; }
@@ -466,7 +480,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
 
 
 /* =====================================================================
-   EXERCISE 1.2 COMPONENTS, in the same calm design system as exercise 1.1.
+   HOMEWORK 2 COMPONENTS, in the same calm design system as Homework 1.
    One colour per kind of operation (the script reads these as #rrggbb).
    ===================================================================== */
 :root {
@@ -689,7 +703,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
 <section class="hero wrap">
   <div class="hero-grid">
     <div class="hero-copy">
-      <div class="hero-tags"><span class="pill">Homework 1, exercise 2</span><span class="pill">Riccardo Santoni</span><span class="pill">Student ID 2007183</span><span class="pill pill-key">BIP-39 to EIP-55</span></div>
+      <div class="hero-tags"><span class="pill">Homework 2</span><span class="pill">Riccardo Santoni</span><span class="pill">Student ID 2007183</span><span class="pill pill-key">BIP-39 to EIP-55</span></div>
       <h1><span class="h-priv">Twelve words</span><span class="arrow">become, step by step, an</span><span class="h-pub">Ethereum address</span></h1>
       <p class="hero-lede">A wallet backup is just a list of words, yet it controls every address the wallet will ever show. This page rebuilds the whole chain in your browser, with the same standards wallets use: BIP-39, BIP-32, BIP-44, secp256k1, Keccak-256 and EIP-55.</p>
       <div class="cat-legend" aria-label="Colour legend: kinds of operation">
@@ -798,7 +812,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
     <article class="block" style="--cc:var(--c-pkc)">
       <h3>secp256k1</h3><span class="yr">Defined in SEC 2, 2000</span>
       <div class="cats"><span class="cat pkc">public-key crypto</span></div>
-      <p>The elliptic curve <span class="m">y² = x³ + 7</span> over a 256-bit prime field. The public key is <span class="m">Q = kG</span>: easy to compute, infeasible to reverse (the discrete logarithm problem from exercise 1). It is what lets the owner sign transactions (ECDSA) without revealing <span class="m">k</span>.</p>
+      <p>The elliptic curve <span class="m">y² = x³ + 7</span> over a 256-bit prime field. The public key is <span class="m">Q = kG</span>: easy to compute, infeasible to reverse (the discrete logarithm problem from Homework 1). It is what lets the owner sign transactions (ECDSA) without revealing <span class="m">k</span>.</p>
       <p class="io">256-bit private key → 512-bit public key <span class="m">(x, y)</span>.</p>
     </article>
     <article class="block" style="--cc:var(--c-hash)">
@@ -834,7 +848,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
       <tbody>
         <tr><td><span class="cat gen">Key generation</span></td><td>Creates a new secret from fresh randomness.</td><td>Produces one</td><td>Nothing to reverse</td><td>128 or 256 bits from a cryptographic random generator. The only random step.</td><td>Must be uniform and, above all, unpredictable: any bias or pattern directly removes security.</td></tr>
         <tr><td><span class="cat der">Key derivation</span></td><td>Computes new secrets from an existing one, deterministically.</td><td>Secret in, secret out</td><td>No, one-way</td><td>PBKDF2 (words → seed), HMAC-SHA512 at every BIP-32 level along the BIP-44 path.</td><td>Outputs look uniform and unrelated, but carry no more entropy than the input.</td></tr>
-        <tr><td><span class="cat pkc">Public-key crypto</span></td><td>Links a private key to a public key; enables signatures.</td><td>Private key secret, public key shared</td><td>No (discrete logarithm)</td><td>secp256k1: <span class="m">Q = kG</span>.</td><td>Structured: algebraic relations between outputs (exercise 1).</td></tr>
+        <tr><td><span class="cat pkc">Public-key crypto</span></td><td>Links a private key to a public key; enables signatures.</td><td>Private key secret, public key shared</td><td>No (discrete logarithm)</td><td>secp256k1: <span class="m">Q = kG</span>.</td><td>Structured: algebraic relations between outputs (Homework 1).</td></tr>
         <tr><td><span class="cat hash">Hashing</span></td><td>Maps any data to a short fixed-size digest.</td><td>None, anyone can compute it</td><td>No, one-way</td><td>Keccak-256 of the public key → address.</td><td>Uniform bits, avalanche, no usable relations.</td></tr>
         <tr><td><span class="cat sum">Checksum</span></td><td>Adds redundancy so that accidental errors are detected.</td><td>None, so it does not stop an attacker</td><td>It can simply be dropped</td><td>4 bits in a 12-word phrase; the letter case in EIP-55.</td><td>A known probability of missing an error: 1/16, or about 1/4000 for an EIP-55 typo.</td></tr>
         <tr><td><span class="cat enc">Encoding</span></td><td>Changes how information is written, not the information.</td><td>None</td><td>Yes, fully</td><td>Bits → words, bytes → hex, upper or lower case.</td><td>Keeps the entropy exactly: a one-to-one mapping.</td></tr>
@@ -947,14 +961,14 @@ footer strong { background: none; color: var(--ink); padding: 0; }
         <tr><td>BIP-39 encoding</td><td>Every word equally likely, so the words keep the entropy.</td><td>Word frequency over 24,000 random words.</td><td class="live" id="ssWords">–</td></tr>
         <tr><td>BIP-39 checksum</td><td>A wrong word is caught 15 times in 16.</td><td>Random word lists that still pass the checksum.</td><td class="live" id="ssCheck">–</td></tr>
         <tr><td>Key derivation</td><td>Outputs unrelated to the input, with no entropy added.</td><td>Bits that change after flipping one bit of the entropy.</td><td class="live" id="ssDer">–</td></tr>
-        <tr><td>secp256k1</td><td>Structure, on purpose: <span class="m">(a + b)G = aG + bG</span> makes signatures possible.</td><td>Tested in exercise 1 (algebraic relations).</td><td class="live">holds in 100% of cases</td></tr>
+        <tr><td>secp256k1</td><td>Structure, on purpose: <span class="m">(a + b)G = aG + bG</span> makes signatures possible.</td><td>Tested in Homework 1 (algebraic relations).</td><td class="live">holds in 100% of cases</td></tr>
         <tr><td>Keccak-256</td><td>Uniform, avalanche-like output.</td><td>Hex digits of 500 addresses; bits changed in the address.</td><td class="live" id="ssHash">–</td></tr>
         <tr><td>EIP-55</td><td>About 15 check bits against accidental typos.</td><td>40,000 one-character typos.</td><td class="live" id="ssTypo">–</td></tr>
       </tbody>
     </table>
   </div>
   <div class="prose" style="margin-top:1.3rem">
-    <p>The pattern is the same one exercise 1 found. Generation, derivation and hashing all produce outputs that look perfectly random, and only generation is actually random. Checksums are measured by how often they miss an error, not by randomness. And secp256k1 is the one step that is deliberately structured, because that structure is what lets a public key verify a signature.</p>
+    <p>The pattern is the same one Homework 1 found. Generation, derivation and hashing all produce outputs that look perfectly random, and only generation is actually random. Checksums are measured by how often they miss an error, not by randomness. And secp256k1 is the one step that is deliberately structured, because that structure is what lets a public key verify a signature.</p>
   </div>
   </div>
 </section>

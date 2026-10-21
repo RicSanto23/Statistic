@@ -3,14 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Homework 1, exercise 1: from a private key to a public key</title>
-<meta name="description" content="Homework 1, exercise 1 by Riccardo Santoni: elliptic-curve scalar multiplication on y² = x³ + 7 (mod 17), from private key k to public key Q = kG, with a slowed-down animation and a statistical exploration.">
+<title>Homework 1: from a private key to a public key</title>
+<meta name="description" content="Homework 1 by Riccardo Santoni: elliptic-curve scalar multiplication on y² = x³ + 7 (mod 17), from private key k to public key Q = kG, with a slowed-down animation and a statistical exploration.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='80' fill='%23C3C6C1'/><rect x='4' y='4' width='80' height='80' fill='%231F2120'/><text x='44' y='64' font-size='50' text-anchor='middle' font-family='Georgia,serif' fill='%23F8F8F6'>Q</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gloock&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Schibsted+Grotesk:ital,wght@0,400..800;1,400..800&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
 <style>
-
+/* =====================================================================
+   NEOBRUTALIST / WEB3 THEME
+   Flat fills, thick ink outlines and hard offset shadows; an elegant
+   high-contrast serif (Gloock) for headings, a technical monospace
+   (Martian Mono) for every number, label and control.
+   Colour roles: mint/teal = private (k, G) · pink = public (Q) ·
+   yellow = what is happening now · violet = the Keccak-256 control.
+   The script reads --ink, --muted, --rule, --sheet, --key, --pub, --step,
+   --hash and --sans for the canvases, so these stay plain #rrggbb / font lists.
+   ===================================================================== */
 :root {
   /* neutral greys; colour only where it carries meaning */
   --paper: #ECEDEA;
@@ -371,7 +380,11 @@ footer { margin-top: 6rem; padding-block: 1.6rem 3rem; border-top: var(--bw) sol
 footer strong { color: var(--ink); background: var(--key-fill); color: var(--on-fill); padding: 0 .3rem; }
 
 
-
+/* =====================================================================
+   CALM VERSION: same layout, neutral surfaces, nothing tilted.
+   Colour is kept only for meaning: teal = private, raspberry = public,
+   amber = the current step, indigo = Keccak-256.
+   ===================================================================== */
 body { background-image: radial-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1.4px); }
 .hero h1 .h-priv, .hero h1 .h-pub, .window, .sticker, .task-num, section.task:nth-of-type(2n) .task-num,
 .sum-sticker, .result .lbl, .callout, .rel:nth-child(2) { transform: none; }
@@ -528,7 +541,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
 <section class="hero wrap">
   <div class="hero-grid">
     <div class="hero-copy">
-      <div class="hero-tags"><span class="pill">Homework 1, exercise 1</span><span class="pill">Riccardo Santoni</span><span class="pill">Student ID 2007183</span><span class="pill pill-key">secp256k1, toy edition</span></div>
+      <div class="hero-tags"><span class="pill">Homework 1</span><span class="pill">Riccardo Santoni</span><span class="pill">Student ID 2007183</span><span class="pill pill-key">secp256k1, toy edition</span></div>
       <h1><span class="h-priv">Private key</span><span class="arrow">multiplied by a point becomes a</span><span class="h-pub">public key</span></h1>
       <p class="hero-lede">Ethereum turns a secret number <span class="m mk">k</span> into a public point <span class="m mq">Q</span> by adding a base point <span class="m mk">G</span> to itself <span class="m mk">k</span> times on the curve secp256k1. Here is the same idea on a curve small enough to draw: going forward takes a few steps, going back means solving the discrete logarithm problem.</p>
       <div class="equation" aria-label="y squared equals x cubed plus 7 mod 17; k equals 6; G equals (1, 5); Q equals 6G equals (5, 8)">
