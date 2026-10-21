@@ -10,16 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gloock&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Schibsted+Grotesk:ital,wght@0,400..800;1,400..800&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
 <style>
-/* =====================================================================
-   NEOBRUTALIST / WEB3 THEME
-   Flat fills, thick ink outlines and hard offset shadows; an elegant
-   high-contrast serif (Gloock) for headings, a technical monospace
-   (Martian Mono) for every number, label and control.
-   Colour roles: mint/teal = private (k, G) · pink = public (Q) ·
-   yellow = what is happening now · violet = the Keccak-256 control.
-   The script reads --ink, --muted, --rule, --sheet, --key, --pub, --step,
-   --hash and --sans for the canvases, so these stay plain #rrggbb / font lists.
-   ===================================================================== */
+
 :root {
   /* neutral greys; colour only where it carries meaning */
   --paper: #ECEDEA;
@@ -380,11 +371,7 @@ footer { margin-top: 6rem; padding-block: 1.6rem 3rem; border-top: var(--bw) sol
 footer strong { color: var(--ink); background: var(--key-fill); color: var(--on-fill); padding: 0 .3rem; }
 
 
-/* =====================================================================
-   CALM VERSION: same layout, neutral surfaces, nothing tilted.
-   Colour is kept only for meaning: teal = private, raspberry = public,
-   amber = the current step, indigo = Keccak-256.
-   ===================================================================== */
+
 body { background-image: radial-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1.4px); }
 .hero h1 .h-priv, .hero h1 .h-pub, .window, .sticker, .task-num, section.task:nth-of-type(2n) .task-num,
 .sum-sticker, .result .lbl, .callout, .rel:nth-child(2) { transform: none; }
@@ -480,7 +467,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
 
 
 /* =====================================================================
-   HOMEWORK 2 COMPONENTS, in the same calm design system as Homework 1.
+   EXERCISE 1.2 COMPONENTS, in the same calm design system as exercise 1.1.
    One colour per kind of operation (the script reads these as #rrggbb).
    ===================================================================== */
 :root {
@@ -661,6 +648,10 @@ footer strong { background: none; color: var(--ink); padding: 0; }
 }
 a.hw-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--shadow-c); background: var(--sheet); color: var(--ink); }
 .hw-card .task-num { margin: 0; }
+.hw-group { font-family: var(--display); font-weight: 400; font-size: clamp(1.8rem, 3vw, 2.4rem); margin: 0 0 -.4rem; padding-bottom: .4rem; border-bottom: var(--bw) solid var(--line); }
+.hw-group + .hw-card { margin-top: .6rem; }
+.hw-card .task-num { font-size: 2.6rem; letter-spacing: -.02em; }
+
 .hw-card .hw-meta { font-family: var(--mono); font-size: .66rem; font-weight: 700; color: var(--muted); }
 .hw-card h2 { margin: .2rem 0 .5rem; font-size: clamp(1.6rem, 2.8vw, 2.2rem); }
 .hw-card p { margin: 0 0 .8rem; color: var(--muted); max-width: 64ch; }
@@ -714,8 +705,9 @@ a.hw-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--
   <div class="bar-in">
     <a class="brand" href="#top"><span class="brand-mark serif" aria-hidden="true">S</span><span class="brand-txt">Statistics course<small>weekly homework, 2026</small></span></a>
     <nav class="nav" aria-label="Homework">
-      <a href="hw01-private-key-to-public-key.html"><span class="n">1</span>Private key to public key</a>
-      <a href="hw02-wallet-seed-to-address.html"><span class="n">2</span>Seed to address</a>
+      <a href="hw01-ex1-private-key-to-public-key.html"><span class="n">1.1</span>Private key to public key</a>
+      <a href="hw01-ex2-wallet-seed-to-address.html"><span class="n">1.2</span>Seed to address</a>
+      <a href="hw02-encryption-and-cryptanalysis.html"><span class="n">2</span>Ciphers and attacks</a>
     </nav>
     <button class="theme-btn" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme">◐</button>
   </div>
@@ -725,29 +717,41 @@ a.hw-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--
 <section class="hero hub-hero wrap">
   <div class="hero-tags"><span class="pill">Student ID 2007183</span><span class="pill">2026</span><span class="pill pill-key">Cryptography and statistics</span></div>
   <h1><span class="h-priv">Statistics course</span><span class="arrow">weekly homework by</span><span class="h-pub">Riccardo Santoni</span></h1>
-  <p class="hero-lede">This is the collection of the homework for the Statistics course. Each one is an interactive page: it implements the algorithms, runs the experiments and discusses what the results mean.</p>
+  <p class="hero-lede">This is the collection of the homework I completed for the Statistics course. Each one is an interactive page: it implements the algorithms, runs the experiments and discusses what the results mean.</p>
 </section>
 
 
 <section class="wrap" aria-label="Homework list">
   <div class="hw-list">
-    <a class="hw-card" href="hw01-private-key-to-public-key.html">
-      <div class="task-num" aria-hidden="true">1</div>
+    <h2 class="hw-group">Homework 1</h2>
+    <a class="hw-card" href="hw01-ex1-private-key-to-public-key.html">
+      <div class="task-num" aria-hidden="true">1.1</div>
       <div>
-        <span class="hw-meta">Homework 1</span>
+        <span class="hw-meta">Homework 1, exercise 1</span>
         <h2>From a private key to a public key</h2>
         <p>Elliptic-curve scalar multiplication on the toy curve y² = x³ + 7 (mod 17): the public key Q = 6G = (5, 8), a slowed-down animation of the algorithm, and a statistical comparison with Keccak-256.</p>
         <div class="cats"><span class="cat pkc">public-key crypto</span><span class="cat hash">hashing</span></div>
       </div>
-      <span class="hw-open">Open homework 1</span>
+      <span class="hw-open">Open exercise 1.1</span>
     </a>
-    <a class="hw-card" href="hw02-wallet-seed-to-address.html">
-      <div class="task-num" aria-hidden="true">2</div>
+    <a class="hw-card" href="hw01-ex2-wallet-seed-to-address.html">
+      <div class="task-num" aria-hidden="true">1.2</div>
       <div>
-        <span class="hw-meta">Homework 2</span>
+        <span class="hw-meta">Homework 1, exercise 2</span>
         <h2>From wallet seed to Ethereum address</h2>
         <p>The Ethereum wallet pipeline rebuilt step by step, from a mnemonic phrase to a checksummed address (BIP-39, BIP-32, BIP-44, secp256k1, Keccak-256, EIP-55), with statistical experiments and historical context.</p>
         <div class="cats"><span class="cat gen">key generation</span><span class="cat der">key derivation</span><span class="cat pkc">public-key crypto</span><span class="cat hash">hashing</span><span class="cat sum">checksum</span><span class="cat enc">encoding</span></div>
+      </div>
+      <span class="hw-open">Open exercise 1.2</span>
+    </a>
+    <h2 class="hw-group">Homework 2</h2>
+    <a class="hw-card" href="hw02-encryption-and-cryptanalysis.html">
+      <div class="task-num" aria-hidden="true">2</div>
+      <div>
+        <span class="hw-meta">Homework 2</span>
+        <h2>Encryption, the Caesar cipher and breaking them</h2>
+        <p>A message encrypted with an elliptic-curve scheme on secp256k1 and with the Caesar cipher, then both broken: Caesar by letter statistics (tested on text of different lengths) and the toy curve by searching its small key space.</p>
+        <div class="cats"><span class="cat pkc">public-key crypto</span></div>
       </div>
       <span class="hw-open">Open homework 2</span>
     </a>
