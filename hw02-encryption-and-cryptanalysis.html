@@ -21,7 +21,7 @@
   --rule: #CDD0CB;
   --line: #2B2E2C;
   --on-fill: #1F2120;
-  --key: #1F7A6C;    --key-fill: #EAF3EF;  --key-soft: rgba(31, 122, 108, .12); --key-deep: #1A6E61;
+  --key: #1F7A6C;    --key-fill: #EAF3EF;  --key-soft: rgba(31, 122, 108, .12); --key-deep: #1F7A6C;
   --pub: #B33A5C;    --pub-fill: #F7E7EC;  --pub-soft: rgba(179, 58, 92, .12);
   --step: #B87C12;   --step-fill: #F5EDD8; --step-ink: #8F6008; --step-soft: rgba(184, 124, 18, .18);
   --hash: #5B52C4;   --hash-fill: #E4E2F5; --hash-soft: rgba(91, 82, 196, .12);
@@ -760,13 +760,6 @@ footer strong { background: none; color: var(--ink); padding: 0; }
 .mlegend { display: flex; flex-wrap: wrap; gap: .45rem; margin: .4rem 0 0; font-family: var(--mono); font-size: .66rem; }
 .mlegend span { display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .55rem; background: var(--sheet); border: 1.5px solid var(--line); }
 .mlegend i { width: .8rem; height: .3rem; display: inline-block; }
-
-/* section number tiles keep the per-section accent */
-section.task#caesar .task-num { background: var(--key-fill); }
-section.task#compare .task-num { background: var(--paper-2); }
-section.task#breakcaesar .task-num { background: var(--step-fill); }
-section.task#breakec .task-num { background: var(--pub-fill); }
-section.task#bonus2 .task-num { background: var(--hash-fill); }
 
 @media (max-width: 900px) {
   .cols2 { grid-template-columns: 1fr; }

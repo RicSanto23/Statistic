@@ -471,9 +471,9 @@ footer strong { background: none; color: var(--ink); padding: 0; }
    One colour per kind of operation (the script reads these as #rrggbb).
    ===================================================================== */
 :root {
-  --c-gen: #8F6008; --c-der: #1F7A6C; --c-pkc: #B33A5C; --c-hash: #5B52C4; --c-sum: #2A6399; --c-enc: #686E68;
+  --c-gen: #8F6008; --c-der: #1F7A6C; --c-pkc: #B33A5C; --c-hash: #5B52C4; --c-sum: #2A6399; --c-enc: #686E68; --c-sim: #A8481C;
 }
-:root[data-theme="dark"] { --c-gen: #E9C066; --c-der: #5FD0BC; --c-pkc: #F291AD; --c-hash: #AFA9F7; --c-sum: #79B4E8; --c-enc: #A3ACB5; }
+:root[data-theme="dark"] { --c-gen: #E9C066; --c-der: #5FD0BC; --c-pkc: #F291AD; --c-hash: #AFA9F7; --c-sum: #79B4E8; --c-enc: #A3ACB5; --c-sim: #F0A27A; }
 
 .brand-mark { font-family: var(--mono); font-size: .95rem; font-weight: 800; }
 
@@ -482,6 +482,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
 .cat::before { content: ""; width: .5rem; height: .5rem; background: currentColor; }
 .cat.gen { color: var(--c-gen); } .cat.der { color: var(--c-der); } .cat.pkc { color: var(--c-pkc); }
 .cat.hash { color: var(--c-hash); } .cat.sum { color: var(--c-sum); } .cat.enc { color: var(--c-enc); }
+.cat.sim { color: var(--c-sim); }
 .cats { display: flex; flex-wrap: wrap; gap: .35rem; }
 .cat-legend { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: 1.4rem; }
 
@@ -708,6 +709,7 @@ a.hw-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--
       <a href="hw01-private-key-to-public-key.html"><span class="n">1.1</span>Private key to public key</a>
       <a href="hw02-wallet-seed-to-address.html"><span class="n">1.2</span>Seed to address</a>
       <a href="hw02-encryption-and-cryptanalysis.html"><span class="n">2</span>Ciphers and attacks</a>
+      <a href="hw03-penetration-scores-lln-clt.html"><span class="n">3</span>LLN and CLT</a>
     </nav>
     <button class="theme-btn" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme">◐</button>
   </div>
@@ -754,6 +756,17 @@ a.hw-card:hover { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--
         <div class="cats"><span class="cat pkc">public-key crypto</span></div>
       </div>
       <span class="hw-open">Open homework 2</span>
+    </a>
+    <h2 class="hw-group">Homework 3</h2>
+    <a class="hw-card" href="hw03-penetration-scores-lln-clt.html">
+      <div class="task-num" aria-hidden="true">3</div>
+      <div>
+        <span class="hw-meta">Homework 3</span>
+        <h2>Penetration scores, the law of large numbers and the central limit theorem</h2>
+        <p>A simulation of m attackers on n systems with Bernoulli and Rademacher steps: the total, average and normalized scores as n grows, checked against the exact binomial, with the law of large numbers, the variance under each normalization and the central limit theorem.</p>
+        <div class="cats"><span class="cat sim">simulation</span><span class="cat sim">limit theorems</span></div>
+      </div>
+      <span class="hw-open">Open homework 3</span>
     </a>
   </div>
 </section>
