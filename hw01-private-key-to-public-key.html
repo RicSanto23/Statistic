@@ -30,10 +30,10 @@
   --rule: #CDD0CB;
   --line: #2B2E2C;
   --on-fill: #1F2120;
-  --key: #1F7A6C;    --key-fill: #EAF3EF;  --key-soft: rgba(31, 122, 108, .12); --key-deep: #1F7A6C;
-  --pub: #B33A5C;    --pub-fill: #F7E7EC;  --pub-soft: rgba(179, 58, 92, .12);
-  --step: #B87C12;   --step-fill: #F5EDD8; --step-ink: #8F6008; --step-soft: rgba(184, 124, 18, .18);
-  --hash: #5B52C4;   --hash-fill: #E4E2F5; --hash-soft: rgba(91, 82, 196, .12);
+  --key: #1F7A6C;    --key-fill: #EAF3EF;  --key-soft: rgba(31, 122, 108, .12);
+  --pub: #B33A5C;    --pub-fill: #F7E7EC;
+  --step: #B87C12;   --step-fill: #F5EDD8; --step-ink: #8F6008;
+  --hash: #5B52C4;   --hash-fill: #E4E2F5;
   --shadow-c: #C3C6C1;
   --sh-sm: 2px 2px 0 var(--shadow-c);
   --sh: 4px 4px 0 var(--shadow-c);
@@ -51,8 +51,8 @@
 }
 :root[data-theme="dark"] {
   --paper: #161A20; --paper-2: #1C2128; --sheet: #20262E; --ink: #E8ECEF; --muted: #A0A9B3; --rule: #333B45; --line: #5E6873; --on-fill: #E8ECEF;
-  --key: #5FD0BC; --key-fill: #1E3B38; --key-deep: #5FD0BC; --pub: #F291AD; --pub-fill: #43273A;
-  --step: #E9C066; --step-ink: #E9C066; --step-fill: #3E3423; --hash: #AFA9F7; --hash-fill: #2C2B4C; --hash-soft: rgba(175, 169, 247, .14);
+  --key: #5FD0BC; --key-fill: #1E3B38; --pub: #F291AD; --pub-fill: #43273A;
+  --step: #E9C066; --step-ink: #E9C066; --step-fill: #3E3423; --hash: #AFA9F7; --hash-fill: #2C2B4C;
   --shadow-c: #0B0D11;
   color-scheme: dark;
 }
@@ -379,7 +379,6 @@ tbody tr:hover td.ec, tbody tr:hover td.hs { color: var(--on-fill); }
 footer { margin-top: 6rem; padding-block: 1.6rem 3rem; border-top: var(--bw) solid var(--line); font-family: var(--mono); font-size: .72rem; color: var(--muted); }
 footer strong { color: var(--ink); background: var(--key-fill); color: var(--on-fill); padding: 0 .3rem; }
 
-
 /* =====================================================================
    CALM VERSION: same layout, neutral surfaces, nothing tilted.
    Colour is kept only for meaning: teal = private, raspberry = public,
@@ -477,7 +476,6 @@ tbody tr:hover td.ec { color: var(--pub); } tbody tr:hover td.hs { color: var(--
 .out-row.addr { background: var(--pub-fill); color: var(--pub); border-left: 8px solid var(--pub); }
 .out-row.addr span:first-child { color: var(--pub); }
 footer strong { background: none; color: var(--ink); padding: 0; }
-
 
 .hero h1 { font-size: clamp(2.6rem, 5.6vw, 5.4rem); }
 
@@ -578,7 +576,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
     <h2 id="summary-title">Summary</h2>
     <div class="summary-text">
       <p>This page turns a private key into a public key with elliptic-curve scalar multiplication, the operation Ethereum uses on secp256k1. On the toy curve <span class="m">y² = x³ + 7 (mod 17)</span>, with base point <span class="m mk">G = (1, 5)</span> and private key <span class="m mk">k = 6</span>, the public key is <span class="m mq">Q = 6G = (5, 8)</span>. I compute it by repeated addition (5 group operations) and by double-and-add (3 operations), and an animation shows every step on the grid.</p>
-      <p>I repeated the experiment for many keys, base points and larger primes, running the same tests on Keccak-256 as a control group. On the classic hash-function tests (uniformity, bit balance, correlation, avalanche) the two cannot be told apart: over repeated runs both are rejected about 5% of the time, as chance predicts. Exact relations such as <span class="m">(a + b)G = aG + bG</span> separate them perfectly: always true for the curve, practically never for the hash. Elliptic-curve keys look random but are full of structure, and their security comes from the size of the group, not from randomness.</p>
+      <p>I repeated the experiment for many keys, base points and larger primes, running the same tests on Keccak-256 as a control group. On the classic hash-function tests of uniformity, correlation and avalanche the two cannot be told apart: over repeated runs the uniformity test rejects both about 5% of the time, as chance predicts. Bit balance and value counts do differ a little, but only because just half of the x values lie on the curve and consecutive keys never repeat a point. Exact relations such as <span class="m">(a + b)G = aG + bG</span> separate them perfectly: always true for the curve, practically never for the hash. Elliptic-curve keys look random but are full of structure, and their security comes from the size of the group, not from randomness.</p>
       <p>What surprised me most: <span class="m">G = (1, 5)</span> has only 9 multiples, so <span class="m">k = 6</span> and <span class="m">k = 15</span> give the same public key, and anyone can find the private key in at most 9 tries. On secp256k1 the same search would take up to about 10⁷⁷ tries.</p>
     </div>
   </div>
@@ -874,7 +872,7 @@ footer strong { background: none; color: var(--ink); padding: 0; }
 
   <div class="prose" style="margin-top:2rem">
     <h3>What the numbers say</h3>
-    <p>Most of the tests in section 3 are the classic checks for <strong>hash functions</strong>: uniform output, balanced bits, no correlation, avalanche. On curves with prime order, scalar multiplication passes them just as well as Keccak-256 does, and repeating the experiment gives the same flat spread of p-values for both. On these tests the two functions cannot be told apart. The three relations in "Hidden structure" separate them perfectly: they hold 100% of the time for the curve and essentially never for the hash. Passing the statistical tests therefore proves nothing about one-wayness, and failing some of them would not break it either.</p>
+    <p>Most of the tests in section 3 are the classic checks for <strong>hash functions</strong>: uniform output, balanced bits, no correlation, avalanche. On curves with prime order, scalar multiplication passes the uniformity, correlation and avalanche tests just as well as Keccak-256 does, and repeating the experiment gives the same flat spread of p-values for both. On these tests the two functions cannot be told apart. Bit balance and value counts can differ a little, but only because just half of the x values lie on the curve and consecutive keys visit every point once, not because of any hidden relation. The three relations in "Hidden structure" separate them perfectly: they hold 100% of the time for the curve and essentially never for the hash. Passing the statistical tests therefore proves nothing about one-wayness, and failing some of them would not break it either.</p>
     <p>The properties that matter for elliptic-curve scalar multiplication as a <strong>one-way function</strong> are different: it must be deterministic and efficient (double-and-add), the group must be large, and the base point must have a large prime order so that the discrete logarithm problem has no shortcut. Security comes from the size of the group and the hardness of the ECDLP, not from statistical randomness. Even a curve whose outputs pass the tests is useless when the group is small: on the toy curve the key falls after trying at most 9 multiples of <span class="m">G</span>.</p>
     <p>The structure that would ruin a hash function is exactly what makes elliptic curves useful. Because <span class="m">a(bG) = b(aG)</span>, two people can agree on a shared secret (ECDH), and because addition is compatible with multiplication, Ethereum can verify ECDSA signatures with only the public key. A hash cannot do either; that is why Ethereum uses both: secp256k1 for keys and signatures, and Keccak-256 to turn the public key into an address (section 5).</p>
     <div class="callout">The toy curve also shows that the group order matters: the 18-point group is not prime (18 = 2 · 3²), so points have orders 2, 3, 6, 9 or 18. Real curves like secp256k1 use a prime-order group so that no point lives in a small subgroup.</div>
@@ -1941,7 +1939,7 @@ function drawStats(r, d) {
   $('vdBits').innerHTML = `Largest gap from the exact expected share: ${r.devEC.toFixed(3)} for the curve, ${r.devH.toFixed(3)} for Keccak (random noise alone gives up to about ${r.devRand.toFixed(3)}). ${r.p === 8191 ? 'Since p = 2¹³ − 1, every bit is nearly balanced.' : 'The top bits sit below ½ for both, simply because values are below p.'}`;
   $('vdKX').innerHTML = `Pearson <span class="m">r(k, x) = ${r.rKX.toFixed(3)}</span>, <span class="m">r(k, y) = ${r.rKY.toFixed(3)}</span>; pure noise stays within about ±${r.rRand.toFixed(3)}.` + (r.mode === 'seq' ? ` The cloud is mirror-symmetric around <span class="m">k = ${(r.n / 2).toFixed(1)}</span> because <span class="m">kG</span> and <span class="m">(n − k)G</span> share their <span class="m">x</span>${r.M > r.n ? `, and it repeats every ${fmtN(r.n)} keys` : ''}.` : '');
   $('vdKU').innerHTML = `Pearson <span class="m">r(k, u) = ${r.rKU.toFixed(3)}</span>, <span class="m">r(k, v) = ${r.rKV.toFixed(3)}</span>. To the eye, and to Pearson, the two clouds are equally shapeless.`;
-  $('vdAva').innerHTML = `Mean share of flipped bits: ${pct(r.avaE)} for the curve, ${pct(r.avaH)} for Keccak; two independent random values in this range differ in ${pct(r.avaRand)} of bits on average (not 50%, because the top bits are almost always 0). Both match the ideal curve, yet yet anyone holding <span class="m">kG</span> can compute <span class="m">(k + 1)G = kG + G</span> (see below).`;
+  $('vdAva').innerHTML = `Mean share of flipped bits: ${pct(r.avaE)} for the curve, ${pct(r.avaH)} for Keccak; two independent random values in this range differ in ${pct(r.avaRand)} of bits on average (not 50%, because the top bits are almost always 0). Both match the ideal curve, yet anyone holding <span class="m">kG</span> can compute <span class="m">(k + 1)G = kG + G</span> (see below).`;
 }
 
 function writeFacts(r) {
