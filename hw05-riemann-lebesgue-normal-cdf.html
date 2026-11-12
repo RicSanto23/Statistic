@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Homework 5: Riemann and Lebesgue integration, and the normal CDF</title>
+<meta name="description" content="Homework 5 by Riccardo Santoni: Riemann and Lebesgue sums compared on ten functions (including Dirichlet, Thomae and a fat Cantor set), and several numerical methods for the standard normal CDF checked against published references.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='80' fill='%23C3C6C1'/><rect x='4' y='4' width='80' height='80' fill='%231F2120'/><text x='44' y='66' font-size='58' text-anchor='middle' font-family='Georgia,serif' fill='%23F8F8F6'>∫</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Martian+Mono:wdth,wght@75..112.5,300..800&family=Schibsted+Grotesk:ital,wght@0,400..800;1,400..800&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+
+:root {
+  /* neutral greys; colour only where it carries meaning */
+  --paper: #ECEDEA;
+  --paper-2: #E3E4E0;
+  --sheet: #F8F8F6;
+  --ink: #1F2120;
+  --muted: #5E625F;
+  --rule: #CDD0CB;
+  --line: #2B2E2C;
+  --on-fill: #1F2120;
+  --key: #1F7A6C;    --key-fill: #EAF3EF;  --key-soft: rgba(31, 122, 108, .12); --key-deep: #1A6E61;
+  --pub: #B33A5C;    --pub-fill: #F7E7EC;
+  --step: #B87C12;   --step-fill: #F5EDD8; --step-ink: #8F6008;
+  --hash: #5B52C4;   --hash-fill: #E4E2F5;
+  --shadow-c: #C3C6C1;
+  --sh-sm: 2px 2px 0 var(--shadow-c);
+  --sh: 4px 4px 0 var(--shadow-c);
+  --sh-lg: 6px 6px 0 var(--shadow-c);
+  --bw: 1.5px;
+  --display: "Gloock", "Bodoni 72", Didot, "Times New Roman", serif;
+  --mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --sans: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; /* canvas labels */
+  --text: "Schibsted Grotesk", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --math: "STIX Two Text", "Cambria Math", Cambria, "Times New Roman", serif;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+:root[data-theme="dark"] {
+  --paper: #161A20; --paper-2: #1C2128; --sheet: #20262E; --ink: #E8ECEF; --muted: #A0A9B3; --rule: #333B45; --line: #5E6873; --on-fill: #E8ECEF;
+  --key: #5FD0BC; --key-fill: #1E3B38; --key-deep: #5FD0BC; --pub: #F291AD; --pub-fill: #43273A;
+  --step: #E9C066; --step-ink: #E9C066; --step-fill: #3E3423; --hash: #AFA9F7; --hash-fill: #2C2B4C;
+  --shadow-c: #0B0D11;
+  color-scheme: dark;
+}
+
+/* ---------- base ---------- */
+*, *::before, *::after { box-sizing: inherit; }
+html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 84px); scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+html, body { overflow-x: clip; }
+body {
+  margin: 0; background-color: var(--paper); color: var(--ink);
+  font-family: var(--text); font-size: 17px; line-height: 1.62; -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 16%, transparent) 1.1px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+img, canvas, svg { max-width: 100%; display: block; }
+a { color: var(--ink); text-decoration-color: var(--key); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+a:hover { background: var(--key-soft); }
+:focus-visible { outline: 3px dashed var(--hash); outline-offset: 3px; }
+::selection { background: var(--step-fill); color: var(--on-fill); }
+p { margin: 0 0 1rem; }
+
+/* custom scrollbars: thick, inked, mint thumb */
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+::-webkit-scrollbar { width: 13px; height: 13px; }
+::-webkit-scrollbar-track { background: var(--paper-2); border-left: 2px solid var(--line); }
+::-webkit-scrollbar-thumb { background: var(--key-fill); border: 2.5px solid var(--line); }
+::-webkit-scrollbar-thumb:hover { background: var(--step-fill); }
+::-webkit-scrollbar-corner { background: var(--paper-2); }
+
+/* math stays in a textbook serif */
+.m { font-family: var(--math); font-style: italic; font-size: 1.07em; }
+.m b, .m strong { font-weight: 600; }
+.mk { color: var(--key-deep); }
+
+.formula {
+  font-family: var(--math); font-size: 1.12rem; line-height: 1.9; margin: 1.2rem 0; padding: .9rem 1.2rem; overflow-x: auto;
+  background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh);
+  border-left: 12px solid var(--key-fill);
+}
+.formula i { font-style: italic; }
+
+/* ---------- top bar ---------- */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30; background: var(--paper); border-bottom: var(--bw) solid var(--line); }
+.bar-in { max-width: 1320px; margin: 0 auto; padding: .6rem 1.5rem; display: flex; gap: 1.4rem; align-items: center; }
+.brand { display: flex; align-items: center; gap: .7rem; text-decoration: none; color: var(--ink); flex: none; }
+.brand:hover { background: none; }
+.brand-mark {
+  width: 2.3rem; height: 2.3rem; display: grid; place-items: center; font-family: var(--display); font-size: 1.5rem;
+  background: var(--key-fill); color: var(--on-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm);
+}
+.brand-txt { font-family: var(--display); font-size: 1.25rem; line-height: 1; }
+.brand-txt small { display: block; font-family: var(--mono); font-size: .62rem; color: var(--muted); margin-top: .25rem; letter-spacing: .02em; }
+.nav { display: flex; gap: .45rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; min-width: 0; padding: 4px 6px 7px 2px; }
+.nav::-webkit-scrollbar { display: none; }
+.nav a {
+  font-family: var(--mono); font-size: .76rem; font-weight: 500; color: var(--ink); text-decoration: none; white-space: nowrap;
+  padding: .38rem .7rem; border: 2px solid transparent;
+}
+.nav a .n { color: var(--key-deep); font-weight: 800; margin-right: .35rem; }
+.nav a:hover { background: var(--sheet); border-color: var(--line); }
+.nav a.on { background: var(--step-fill); color: var(--on-fill); border-color: var(--line); box-shadow: var(--sh-sm); }
+.nav a.on .n { color: var(--on-fill); }
+.theme-btn {
+  width: 2.4rem; height: 2.4rem; flex: none; cursor: pointer; font-size: 1.05rem; color: var(--on-fill);
+  background: var(--hash-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm);
+}
+.theme-btn:active { transform: translate(3px, 3px); box-shadow: none; }
+
+/* ---------- layout ---------- */
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 1.5rem; }
+h1, h2, h3 { margin: 0; font-weight: 400; }
+h2 { font-family: var(--display); font-size: clamp(2.1rem, 3.4vw, 2.9rem); line-height: 1.02; letter-spacing: -.01em; }
+h3 { font-family: var(--display); font-size: 1.65rem; line-height: 1.1; margin: 2.8rem 0 .9rem; }
+.lede { color: var(--muted); font-size: 1rem; margin: .9rem 0 0; }
+.prose { max-width: 68ch; }
+.prose p { margin: 0 0 1rem; }
+.small { font-size: .9rem; color: var(--muted); }
+
+/* ---------- hero: asymmetric, overlapping ---------- */
+.hero { padding-block: 3.2rem 4.2rem; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 3.5rem; align-items: center; }
+.hero-tags { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.6rem; }
+.pill { font-family: var(--mono); font-size: .72rem; font-weight: 600; padding: .3rem .65rem; background: var(--sheet); border: 2px solid var(--line); box-shadow: var(--sh-sm); }
+.pill-key { background: var(--key-fill); color: var(--on-fill); }
+.hero h1 { font-family: var(--display); font-size: clamp(3rem, 7.4vw, 6.4rem); line-height: .92; letter-spacing: -.02em; }
+.hero h1 .h-priv, .hero h1 .h-pub { display: inline-block; padding: .02em .18em .1em; border: var(--bw) solid var(--line); box-shadow: var(--sh); color: var(--on-fill); }
+.hero h1 .h-priv { background: var(--key-fill); transform: rotate(-1.5deg); }
+.hero h1 .h-pub { background: var(--pub-fill); transform: rotate(1deg); margin-left: .5em; }
+.hero h1 .arrow { display: block; font-family: var(--mono); font-size: max(.72rem, .17em); letter-spacing: .01em; line-height: 1.4; color: var(--muted); margin: .9em 0 .9em .4em; }
+.hero h1 .arrow::before { content: "↳ "; color: var(--ink); }
+.hero-lede { font-size: 1.08rem; max-width: 50ch; margin: 2rem 0 1.6rem; }
+
+.hero-visual { position: relative; padding: 1.2rem 1.6rem 0 0; }
+.window { background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-lg); transform: rotate(1.2deg); }
+.window-bar { display: flex; align-items: center; gap: .8rem; padding: .5rem .8rem; border-bottom: var(--bw) solid var(--line); background: var(--step-fill); color: var(--on-fill); font-family: var(--mono); font-size: .72rem; font-weight: 600; }
+.wb-dots { display: flex; gap: .35rem; }
+.wb-dots i { width: .8rem; height: .8rem; border: 2px solid var(--on-fill); background: var(--sheet); border-radius: 50%; }
+.wb-dots i:nth-child(1) { background: var(--pub-fill); } .wb-dots i:nth-child(2) { background: var(--key-fill); }
+.wb-meta { margin-left: auto; opacity: .75; }
+
+.sticker { position: absolute; z-index: 2; font-family: var(--mono); font-weight: 800; font-size: 1rem; color: var(--on-fill); padding: .55rem .8rem; border: var(--bw) solid var(--line); box-shadow: var(--sh); line-height: 1.2; }
+.sticker small { display: block; font-size: .62rem; font-weight: 500; opacity: .8; }
+
+.sticker-k { background: var(--key-fill); left: -2.6rem; top: -1.5rem; transform: rotate(-5deg); }
+
+/* ---------- summary ---------- */
+#summary { padding-block: 4.2rem 0; }
+.summary-box { position: relative; max-width: 62rem; margin-left: auto; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: 10px 10px 0 var(--pub-fill), 10px 10px 0 2.5px var(--line); padding: 2rem 2.3rem 1.2rem; }
+.summary-box h2 { margin-bottom: 1rem; }
+.summary-text { max-width: 70ch; }
+.sum-sticker { position: absolute; top: -1.2rem; left: -1.2rem; font-family: var(--mono); font-weight: 800; font-size: .9rem; padding: .35rem .7rem; color: var(--on-fill); background: var(--step-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm); transform: rotate(-8deg); }
+
+/* ---------- task sections: sticky sidebar + content ---------- */
+section.task { display: grid; grid-template-columns: minmax(0, 19rem) minmax(0, 1fr); gap: 3rem; padding-block: 6rem 1rem; align-items: start; }
+.task-head { position: sticky; top: 6.2rem; display: flex; flex-direction: column; gap: 0; }
+.task-num {
+  width: 5.6rem; height: 5.6rem; display: grid; place-items: center; margin-bottom: 1.2rem;
+  font-family: var(--display); font-size: 3.6rem; line-height: 1; color: var(--on-fill);
+  background: var(--key-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh); transform: rotate(-4deg);
+}
+section.task:nth-of-type(2n) .task-num { background: var(--pub-fill); transform: rotate(3deg); }
+
+.task-head .lede { font-size: .95rem; }
+.task-body { min-width: 0; }
+.task-body > :first-child { margin-top: 0; }
+
+/* sub-navigation inside the sidebar */
+.subnav { display: flex; flex-direction: column; gap: .35rem; margin-top: 1.4rem; padding-top: 1rem; border-top: 2px dashed var(--line); }
+.subnav a { font-family: var(--mono); font-size: .72rem; font-weight: 500; text-decoration: none; padding: .3rem .55rem; border: 2px solid transparent; }
+.subnav a::before { content: "→ "; color: var(--key); }
+.subnav a:hover { background: var(--sheet); border-color: var(--line); box-shadow: var(--sh-sm); }
+
+/* ---------- panels ---------- */
+
+/* ---------- controls: chunky, inked ---------- */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 1rem 1.1rem; align-items: flex-end; margin: 1.4rem 0 1.6rem;
+  padding: 1.1rem 1.2rem 1.25rem; background: var(--paper-2); border: var(--bw) dashed var(--line);
+}
+.field { display: flex; flex-direction: column; gap: .35rem; font-family: var(--mono); font-size: .68rem; font-weight: 600; color: var(--muted); }
+.field label { color: var(--ink); }
+.field label .m { font-size: 1.2em; }
+select, input[type=number], input[type=text] {
+  font-family: var(--mono); font-size: .86rem; font-weight: 500; color: var(--ink);
+  background-color: var(--sheet); border: var(--bw) solid var(--line); border-radius: 0; padding: .6rem .75rem;
+  min-width: 7.5rem; box-shadow: var(--sh-sm); transition: transform .1s, box-shadow .1s;
+}
+select {
+  -webkit-appearance: none; appearance: none; padding-right: 2.4rem; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%), linear-gradient(var(--key-fill), var(--key-fill));
+  background-position: calc(100% - 1.15rem) 52%, calc(100% - .8rem) 52%, 100% 0;
+  background-size: 6px 6px, 6px 6px, 1.95rem 100%; background-repeat: no-repeat;
+}
+select:focus, input[type=number]:focus, input[type=text]:focus { outline: none; transform: translate(-2px, -2px); box-shadow: 5px 5px 0 var(--hash); }
+
+input[type=range] { -webkit-appearance: none; appearance: none; width: 10rem; height: 2.6rem; background: transparent; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 10px; background: var(--sheet); border: 2px solid var(--line); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; background: var(--key-fill); border: 2.5px solid var(--line); box-shadow: 2px 2px 0 var(--shadow-c); }
+input[type=range]::-moz-range-track { height: 6px; background: var(--sheet); border: 2px solid var(--line); }
+input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 0; background: var(--key-fill); border: 2.5px solid var(--line); }
+button.btn {
+  font-family: var(--mono); font-weight: 700; font-size: .8rem; cursor: pointer; color: var(--on-fill);
+  border: var(--bw) solid var(--line); border-radius: 0; padding: .7rem 1.1rem; background: var(--key-fill); box-shadow: var(--sh);
+  transition: transform .1s, box-shadow .1s;
+}
+button.btn.ghost { background: var(--sheet); color: var(--ink); }
+button.btn:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--shadow-c); }
+button.btn:active:not(:disabled) { transform: translate(5px, 5px); box-shadow: none; }
+button.btn:disabled { opacity: .5; cursor: default; }
+@media (prefers-reduced-motion: reduce) { button.btn, select, input { transition: none; } }
+
+/* ---------- the toy public key ---------- */
+.result {
+  position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: .4rem 1.6rem; margin: 1.8rem 0 2rem;
+  padding: 1.4rem 1.6rem 1.2rem; background: var(--pub-fill); color: var(--on-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh-lg);
+}
+
+/* ---------- facts: stat tiles ---------- */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .9rem; margin: .4rem 0 1.2rem; }
+.fact { position: relative; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm); padding: .8rem .9rem .7rem; }
+.fact::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 7px; background: var(--key-fill); border-bottom: 2px solid var(--line); }
+.fact:nth-child(2n)::before { background: var(--hash-fill); }
+.fact b { display: block; font-family: var(--mono); font-weight: 800; font-size: 1.55rem; margin-top: .3rem; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.fact span { font-family: var(--mono); font-size: .64rem; color: var(--muted); line-height: 1.5; display: block; }
+.fact.warn::before { background: var(--step-fill); }
+.fact.warn b { color: var(--step-ink); }
+
+/* point chips */
+
+/* ---------- tables as infographics ---------- */
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
+.two h3 { margin-top: 1rem; font-size: 1.35rem; }
+.scroll { overflow-x: auto; }
+.tbl-box { max-height: 26rem; overflow: auto; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); }
+table { border-collapse: separate; border-spacing: 0; width: 100%; font-family: var(--mono); font-size: .74rem; }
+th, td { padding: .55rem .75rem; text-align: left; vertical-align: top; border-bottom: 1.5px solid var(--rule); }
+th { position: sticky; top: 0; z-index: 1; background: var(--ink); color: var(--paper); font-weight: 700; font-size: .7rem; border-bottom: var(--bw) solid var(--line); }
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--key-fill) 9%, var(--sheet)); }
+tbody tr { transition: background-color .12s; }
+tbody tr:hover td { background: var(--step-fill); color: var(--on-fill); }
+tbody tr:last-child td { border-bottom: 0; }
+tr.final td, tr.final:hover td { background: var(--pub-fill) !important; color: var(--on-fill); font-weight: 800; border-block: 2px solid var(--line); }
+tr.zero td { color: var(--muted); font-style: italic; }
+
+/* ---------- visualiser ---------- */
+
+/* operation list as a terminal */
+
+.legend { display: flex; flex-wrap: wrap; gap: .45rem; font-family: var(--mono); font-size: .66rem; color: var(--ink); }
+.legend > span { display: inline-block; padding: .25rem .55rem; background: var(--sheet); border: 2px solid var(--line); }
+.legend i { display: inline-block; width: .75rem; height: .75rem; border-radius: 50%; margin-right: .4rem; border: 1.5px solid var(--line); vertical-align: -.1rem; }
+.legend i.line { height: .3rem; width: 1.3rem; border-radius: 0; }
+.legend i.dash { height: 0; width: 1.3rem; border: 0; border-top: 2px dashed var(--ink); background: none !important; }
+
+/* ---------- statistics ---------- */
+
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.6rem; margin-top: 1rem; }
+.chart { display: flex; flex-direction: column; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); }
+.chart.wide { grid-column: 1 / -1; }
+.chart h4 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 1.22rem; line-height: 1.15; padding: .75rem 1rem .6rem; border-bottom: var(--bw) solid var(--line); background: color-mix(in srgb, var(--key-fill) 22%, var(--sheet)); }
+.chart:nth-child(4n+2) h4, .chart:nth-child(4n+3) h4 { background: color-mix(in srgb, var(--hash-fill) 30%, var(--sheet)); }
+.chart .look { font-family: var(--mono); font-size: .64rem; color: var(--muted); line-height: 1.6; margin: .7rem 1rem .4rem; }
+.chart canvas { width: calc(100% - 1.4rem); height: 240px; margin: 0 .7rem; }
+.chart.wide canvas { height: 260px; }
+.chart .verdict { font-size: .86rem; margin: .7rem 1rem 1rem; padding: .65rem .8rem; background: var(--paper-2); border: 2px dashed var(--line); }
+.status { font-family: var(--mono); font-size: .72rem; color: var(--muted); min-height: 1.4em; }
+
+/* scoreboard and other tables */
+.score td.hs { white-space: nowrap; }
+
+.score td.hs { color: var(--hash); font-weight: 800; }
+
+.score td.apart { white-space: nowrap; font-weight: 800; }
+.score td.apart.y::before { content: ""; display: inline-block; width: .7rem; height: .7rem; background: var(--step-fill); border: 2px solid var(--line); margin-right: .45rem; vertical-align: -.1rem; }
+.score td.apart.n { color: var(--muted); font-weight: 500; }
+.score tr.group td, .score tr.group:hover td { background: var(--key-fill) !important; color: var(--on-fill); font-weight: 800; font-size: .7rem; border-block: 2px solid var(--line); }
+tbody tr:hover td.hs { color: var(--on-fill); }
+
+  
+
+.rel { background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); padding: 1rem 1.1rem; }
+.rel:nth-child(2) { transform: translateY(1rem); }
+
+.rel p { font-size: .84rem; color: var(--muted); margin: 0; }
+
+.callout { position: relative; max-width: 66ch; margin: 1.6rem 0; padding: .9rem 1.1rem; background: var(--step-fill); color: var(--on-fill); border: var(--bw) solid var(--line); box-shadow: var(--sh); transform: rotate(-.6deg); }
+.callout strong { font-family: var(--mono); font-size: .82rem; }
+
+/* section 5 output: a block explorer */
+
+footer { margin-top: 6rem; padding-block: 1.6rem 3rem; border-top: var(--bw) solid var(--line); font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+footer strong { color: var(--ink); background: var(--key-fill); color: var(--on-fill); padding: 0 .3rem; }
+
+body { background-image: radial-gradient(color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1.4px); }
+.hero h1 .h-priv, .hero h1 .h-pub, .window, .sticker, .task-num, section.task:nth-of-type(2n) .task-num,
+.sum-sticker, .callout, .rel:nth-child(2) { transform: none; }
+::-webkit-scrollbar-thumb { background: var(--rule); border-width: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+a:hover { background: none; color: var(--key); }
+
+/* top bar */
+.brand-mark { background: var(--ink); color: var(--paper); box-shadow: none; }
+.nav a.on { background: var(--ink); color: var(--paper); border-color: var(--ink); box-shadow: none; }
+.nav a.on .n { color: var(--paper); }
+.theme-btn { background: var(--sheet); color: var(--ink); box-shadow: var(--sh-sm); }
+
+/* hero */
+.pill { box-shadow: none; }
+.pill-key { background: var(--sheet); color: var(--key); }
+.hero h1 .h-priv, .hero h1 .h-pub { background: var(--sheet); color: var(--ink); box-shadow: var(--sh); padding-left: .3em; }
+.hero h1 .h-priv { border-left: .14em solid var(--key); }
+.hero h1 .h-pub { border-left: .14em solid var(--pub); }
+
+.window-bar { background: var(--paper-2); color: var(--ink); }
+.wb-dots i, .wb-dots i:nth-child(1), .wb-dots i:nth-child(2) { background: var(--sheet); border-color: var(--muted); }
+.sticker { background: var(--sheet); color: var(--ink); box-shadow: var(--sh); }
+ 
+.sticker-k { border-left: 6px solid var(--key); } .sticker-k small { color: var(--key); opacity: 1; }
+
+/* summary */
+.summary-box { box-shadow: var(--sh-lg); }
+.sum-sticker { background: var(--ink); color: var(--paper); box-shadow: none; }
+
+/* sticky sidebar number tiles */
+.task-num, section.task:nth-of-type(2n) .task-num {
+  background: var(--sheet); color: var(--ink); box-shadow: var(--sh);
+}
+.subnav { border-top-style: solid; border-top-color: var(--rule); }
+
+/* controls */
+.controls { background: var(--paper-2); border: var(--bw) solid var(--rule); }
+select { background-image: linear-gradient(45deg, transparent 50%, var(--ink) 50%), linear-gradient(135deg, var(--ink) 50%, transparent 50%), linear-gradient(var(--paper-2), var(--paper-2)); }
+select:focus, input[type=number]:focus, input[type=text]:focus { box-shadow: 4px 4px 0 var(--key); }
+input[type=range]::-webkit-slider-thumb { background: var(--ink); box-shadow: none; }
+input[type=range]::-moz-range-thumb { background: var(--ink); }
+button.btn { background: var(--ink); color: var(--paper); box-shadow: var(--sh-sm); }
+button.btn.ghost { background: var(--sheet); color: var(--ink); }
+button.btn:hover:not(:disabled) { box-shadow: 5px 5px 0 var(--shadow-c); }
+
+/* results and numbers */
+.result { background: var(--sheet); color: var(--ink); box-shadow: var(--sh-lg); border-left: 10px solid var(--pub); }
+
+.fact::before, .fact:nth-child(2n)::before { background: var(--paper-2); border-bottom-color: var(--rule); }
+.fact.warn::before { background: var(--step-fill); }
+
+/* tables */
+tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--ink) 3.5%, var(--sheet)); }
+tbody tr:hover td { background: var(--paper-2); color: var(--ink); }
+tr.final td, tr.final:hover td { background: var(--pub-fill) !important; color: var(--pub); }
+
+.score tr.group td, .score tr.group:hover td { background: var(--paper-2) !important; color: var(--ink); }
+.score td.apart.y::before { background: var(--ink); border-color: var(--ink); }
+ tbody tr:hover td.hs { color: var(--hash); }
+
+/* visualiser */
+
+/* charts and cards */
+.chart h4, .chart:nth-child(4n+2) h4, .chart:nth-child(4n+3) h4 { background: var(--paper-2); }
+.chart .verdict { border-style: solid; border-color: var(--rule); }
+
+.callout { background: var(--sheet); color: var(--ink); border-left: 8px solid var(--step); box-shadow: var(--sh); }
+
+footer strong { background: none; color: var(--ink); padding: 0; }
+
+/* =====================================================================
+   EXERCISE 1.2 COMPONENTS, in the same calm design system as exercise 1.1.
+   One colour per kind of operation (the script reads these as #rrggbb).
+   ===================================================================== */
+:root { --c-hash: #5B52C4; --c-sum: #2A6399;
+}
+:root[data-theme="dark"] { --c-hash: #AFA9F7; --c-sum: #79B4E8; }
+
+.brand-mark { font-family: var(--mono); font-size: .95rem; font-weight: 800; }
+
+/* kind-of-operation chips */
+.cat { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--mono); font-size: .6rem; font-weight: 700; padding: .2rem .5rem; border: 1.5px solid currentColor; background: var(--sheet); white-space: nowrap; }
+.cat::before { content: ""; width: .5rem; height: .5rem; background: currentColor; }
+  
+.cat.hash { color: var(--c-hash); } .cat.sum { color: var(--c-sum); } 
+
+/* hero: the pipeline inside the window */
+
+.hero-visual .window { max-width: 520px; margin-left: auto; }
+
+/* the lab */
+
+.hero h1 { font-size: clamp(2.6rem, 5.6vw, 5.4rem); }
+
+/* building blocks */
+
+/* tables with sentences in them */
+.why td { font-family: var(--text); font-size: .86rem; }
+
+/* statistics */
+
+.toggle { display: inline-flex; border: var(--bw) solid var(--line); background: var(--sheet); }
+.toggle button { font-family: var(--mono); font-size: .66rem; font-weight: 600; border: 0; background: transparent; color: var(--muted); padding: .35rem .7rem; cursor: pointer; }
+.toggle button + button { border-left: var(--bw) solid var(--line); }
+.toggle button.on { background: var(--ink); color: var(--paper); }
+
+/* history */
+
+ 
+
+.pad { display: flex; flex-wrap: wrap; gap: 3px; margin-top: .35rem; }
+.pad span { font-family: var(--mono); font-size: .62rem; padding: .1rem .3rem; background: var(--paper-2); border: 1.5px solid var(--rule); }
+.pad span.d { background: var(--c-hash); color: var(--sheet); border-color: var(--c-hash); font-weight: 800; }
+.pad span.e { background: var(--key); color: var(--sheet); border-color: var(--key); font-weight: 800; }
+
+/* why several */
+.why td, .why th { text-align: center; }
+.why td:first-child, .why th:first-child { text-align: left; }
+.why td.y::before { content: ""; display: inline-block; width: .8rem; height: .8rem; background: var(--key); border: 1.5px solid var(--line); }
+
+@media (max-width: 900px) {
+  
+  
+  
+  
+  
+  .hero-visual .window { margin-left: 0; }
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .wb-meta { display: none; }
+  .window-bar { min-width: 0; }
+  .wb-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* link back to the course home page */
+.home-link { flex: none; font-family: var(--mono); font-size: .7rem; font-weight: 700; color: var(--ink); text-decoration: none; padding: .38rem .65rem; background: var(--sheet); border: 1.5px solid var(--line); box-shadow: var(--sh-sm); white-space: nowrap; }
+.home-link:hover { color: var(--key); background: var(--sheet); }
+
+/* ---------- print ---------- */
+@media print {
+  .bar, .controls, .subnav, .theme-btn, button, .sticker { display: none !important; }
+  body { background: #fff; color: #000; font-size: 10.5pt; }
+  section.task { display: block; padding-block: 1.5rem .5rem; }
+  .task-head { position: static; }
+  .chart, .rel, .result, table, .summary-box { break-inside: avoid; }
+  .tbl-box { max-height: none !important; overflow: visible !important; }
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 1080px) {
+  section.task { grid-template-columns: 1fr; gap: 1.6rem; padding-block: 4.5rem 1rem; }
+  .task-head { position: static; }
+  .task-num { width: 4.4rem; height: 4.4rem; font-size: 2.8rem; }
+  .subnav { flex-direction: row; flex-wrap: wrap; }
+}
+@media (max-width: 900px) {
+  .hero-grid, .two { grid-template-columns: 1fr; }
+  .charts { grid-template-columns: 1fr; }
+  .rel:nth-child(2) { transform: none; }
+  .hero-visual { max-width: 460px; padding-right: 1rem; }
+  .sticker-k { left: auto; right: -.4rem; top: -.4rem; }
+  .brand-txt small { display: none; }
+  
+}
+@media (max-width: 640px) {
+  .brand-txt { display: none; }
+  .nav { margin-left: 0; }
+  .hero h1 .h-pub { margin-left: 0; margin-top: .1em; }
+  .summary-box { padding: 1.8rem 1.2rem 1rem; box-shadow: 6px 6px 0 var(--pub-fill), 6px 6px 0 2.5px var(--line); }
+  .controls { padding: .9rem; }
+  .field { max-width: 100%; }
+  select, input[type=number], input[type=text] { max-width: 100%; }
+}
+
+/* =====================================================================
+   HOMEWORK 4 COMPONENTS — Welford's formulas, sampling mean and variance.
+   Same calm neobrutalist system as the other pages.
+   Colour meanings on this page: teal = the sample mean, raspberry = the sample
+   variance (divisor n−1), indigo = the alternative being compared (divisor n,
+   the textbook formula, the z-interval), dashed ink = exact theory,
+   amber = the step being looked at.
+   ===================================================================== */
+[hidden] { display: none !important; }
+.brand-mark { font-family: var(--display); font-size: 1.4rem; font-weight: 400; }
+
+/* hero window: the three core lines and the running means */
+.hcode { margin: 0; padding: .9rem 1.1rem .8rem; font-family: var(--mono); font-size: .86rem; line-height: 1.75; background: var(--sheet); border-bottom: var(--bw) solid var(--line); overflow-x: auto; }
+.hcode .c { color: var(--muted); }
+.hero-plot { display: block; width: 100%; aspect-ratio: 16 / 10; background: var(--sheet); }
+.hplot-cap { font-family: var(--mono); font-size: .66rem; color: var(--muted); line-height: 1.55; margin: 0; max-width: none; padding: .5rem .9rem .6rem; background: var(--sheet); border-top: 1.5px solid var(--rule); }
+
+/* code listings */
+.codebox { margin: 1.2rem 0; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh); }
+.codebox .cb-title { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-family: var(--mono); font-size: .66rem; font-weight: 700; padding: .45rem .85rem; border-bottom: var(--bw) solid var(--line); background: var(--paper-2); }
+.codebox .cb-title span:last-child { font-weight: 500; color: var(--muted); }
+.codebox pre { margin: 0; padding: .8rem 0; overflow-x: auto; font-family: var(--mono); font-size: .8rem; line-height: 1.8; tab-size: 2; }
+.codebox pre .ln { display: block; padding: 0 1rem; white-space: pre; }
+.codebox pre .ln.core { background: var(--step-fill); color: var(--on-fill); border-left: 5px solid var(--step); padding-left: calc(1rem - 5px); font-weight: 600; }
+.codebox pre .cm { color: var(--muted); font-weight: 400; }
+.codebox pre .ln.core .cm { color: var(--on-fill); opacity: .8; }
+
+/* derivation steps (a real sequence, so they are numbered) */
+.deriv { display: grid; gap: .8rem; margin: 1.2rem 0; }
+.dstep { display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: .9rem; background: var(--sheet); border: var(--bw) solid var(--line); box-shadow: var(--sh-sm); padding: .85rem 1.1rem; }
+.dstep .dn { display: grid; place-items: center; width: 2rem; height: 2rem; font-family: var(--mono); font-weight: 800; font-size: .78rem; border: 2px solid var(--line); background: var(--paper-2); }
+.dstep .dm { font-family: var(--math); font-size: 1.08rem; line-height: 1.95; overflow-x: auto; padding-bottom: .1rem; }
+.up { font-style: normal; font-family: var(--text); font-size: .9em; }
+.dstep .dm i, .formula i { font-style: italic; }
+.dstep .dw { font-size: .88rem; color: var(--muted); margin: .15rem 0 0; }
+.dstep .dchk { font-family: var(--mono); font-size: .64rem; color: var(--key-deep); margin-top: .4rem; }
+.dstep.final { border-left: 8px solid var(--key); }
+.formula.big { font-size: 1.22rem; border-left-color: var(--key); }
+.formula sub, .dstep sub, .m sub { font-size: .72em; line-height: 0; }
+
+/* tables */
+table.num th, table.num td { text-align: right; white-space: nowrap; }
+table.num th:first-child, table.num td:first-child { text-align: left; }
+table.num td.ok { color: var(--key-deep); font-weight: 800; }
+table.num td.bad { color: var(--pub); font-weight: 800; }
+table.num td.alt { color: var(--hash); }
+table.num td.mean { color: var(--key-deep); }
+table.num td.var { color: var(--pub); }
+table.num td.dim { color: var(--muted); }
+
+.tbl-box.auto { max-height: none; }
+table.txt td, table.txt th { white-space: normal; text-align: left; font-family: var(--text); font-size: .86rem; }
+table.txt th { font-family: var(--mono); font-size: .7rem; }
+
+/* charts: three small multiples in a row */
+.charts.three { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.1rem; }
+.charts.three .chart h4 { font-size: 1.05rem; padding: .6rem .8rem .5rem; }
+.chart.sm canvas { height: 190px; }
+.chart .legend { margin: .6rem 1rem 0; }
+.chart-sel { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; margin: 0 0 1rem; }
+.chart-sel label { font-family: var(--mono); font-size: .7rem; font-weight: 700; }
+
+/* the inputs of the experiment */
+.controls .field input[type=number] { min-width: 5.5rem; }
+.controls .field.grow { flex: 1 1 14rem; }
+.fact b.sci { font-size: 1.12rem; white-space: nowrap; margin-top: .55rem; }
+.status.busy { color: var(--step-ink); font-weight: 700; }
+
+/* mini bar behind a number (n vs target) */
+.try-in { width: 100%; max-width: 46rem; }
+.note-line { font-family: var(--mono); font-size: .7rem; color: var(--muted); margin: .5rem 0 0; overflow-wrap: anywhere; }
+
+@media (max-width: 900px) {
+  .charts.three { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .dstep { grid-template-columns: minmax(0, 1fr); gap: .5rem; }
+  .codebox pre { font-size: .74rem; }
+  .formula.big { font-size: 1.05rem; }
+}
+
+
+/* homework 5 additions */
+:root{--blue:#2A6399}:root[data-theme=dark]{--blue:#79B4E8}
+.chart canvas.tall{height:300px}
+.verdict{font-size:.86rem;padding:.65rem .8rem;background:var(--paper-2);border:1.5px solid var(--rule)}
+.legend i.dash{background:none}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="bar-in">
+    <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true">∫</span><span class="brand-txt">Integrals<small>Riemann, Lebesgue and Φ</small></span></a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#lebesgue"><span class="n">1</span>Riemann vs Lebesgue</a>
+      <a href="#normal"><span class="n">2</span>Normal CDF</a>
+    </nav>
+    <a class="home-link" href="index.html">All homework</a>
+    <button class="theme-btn" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme">◐</button>
+  </div>
+</header>
+
+<main id="top">
+<!-- ================= HERO ================= -->
+<section class="hero wrap">
+  <div class="hero-grid">
+    <div class="hero-copy">
+      <div class="hero-tags"><span class="pill">Homework 5</span><span class="pill">Riccardo Santoni</span><span class="pill">Student ID 2007183</span><span class="pill pill-key">numerical integration</span></div>
+      <h1><span class="h-priv">Slice the domain</span><span class="arrow">or slice the range, then compute</span><span class="h-pub">the normal CDF</span></h1>
+      <p class="hero-lede">Exercise 1 integrates ten functions twice: with Riemann sums (cut the <i>x</i>-axis) and with Lebesgue sums (cut the <i>y</i>-axis and measure the preimages). Exercise 2 computes Φ(<i>x</i>) with quadrature, series and erf-based formulas, and checks every method against published values.</p>
+    </div>
+    <div class="hero-visual">
+      <div class="window">
+        <div class="window-bar"><span class="wb-dots" aria-hidden="true"><i></i><i></i><i></i></span><span class="wb-title">partitions.canvas</span><span class="wb-meta">sin x on [0, π]</span></div>
+<pre class="hcode"><span class="c">// Riemann: cut the x-axis</span>
+S = Σ f(xᵢ) · h
+<span class="c">// Lebesgue: cut the y-axis</span>
+S = Σ yᵢ · μ{ yᵢ &lt; f ≤ yᵢ₊₁ }</pre>
+        <canvas id="heroPlot" class="hero-plot" role="img" aria-label="The same curve cut into vertical strips (Riemann) and into horizontal levels (Lebesgue)"></canvas>
+        <p class="hplot-cap">Left: 12 vertical strips, one value of f per strip. Right: 8 horizontal levels, each weighed by the width of its preimage.</p>
+      </div>
+      <div class="sticker sticker-k" aria-hidden="true"><small>two ways to</small>∫ f</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SUMMARY ================= -->
+<section class="wrap" id="summary" aria-labelledby="summary-title">
+  <div class="summary-box">
+    <span class="sum-sticker" aria-hidden="true">tl;dr</span>
+    <h2 id="summary-title">Summary</h2>
+    <div class="summary-text">
+      <p>Riemann sums cut the domain into <span class="m">n</span> pieces and sample <span class="m">f</span>; Lebesgue sums cut the range into <span class="m">k</span> levels and weigh each level by the measure of its preimage. On every Riemann-integrable function both converge to the same number. For <span class="m">sin x</span> the fitted error slopes are <b id="sumR">…</b> for the Riemann midpoint rule and <b id="sumL">…</b> for the Lebesgue lower sum: the midpoint rule is faster on smooth functions, but the Lebesgue sum is a guaranteed bracket, needs only that <span class="m">f</span> is measurable, and gives the right answer on the Dirichlet function (0) and on the indicator of a fat Cantor set (1/2), which is not Riemann integrable at all, where Riemann sums can return 0 or 1 depending on the sample points.</p>
+      <p>For Φ(<i>x</i>), no elementary formula exists (Liouville), so the page tests seven methods against 12 published reference values and against an independent 70-digit BigInt computation. A hybrid of a positive-term power series (for |<i>x</i>| &lt; 2) and a continued fraction for the tail (otherwise) matches the references to a relative error of at most <b id="sumH">…</b>, including at <i>x</i> = −10 where Φ ≈ 7.6 × 10⁻²⁴.</p>
+      <p>What surprised me most: the “obvious” methods fail in different places. The alternating erf series already has a 4% relative error at <i>x</i> = −6 and returns garbage at −8, and any formula that returns 1 − Φ(−<i>x</i>) or ½ + ∫ loses the whole tail to cancellation, even though it looks accurate in absolute terms.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 1. RIEMANN AND LEBESGUE ================= -->
+<section class="task wrap" id="lebesgue">
+  <div class="task-head">
+    <div class="task-num" aria-hidden="true">1</div>
+    <div>
+      <h2>Exercise 1: Riemann and Lebesgue integration</h2>
+      <p class="lede">The same integral computed by partitioning the domain or the range, on ten functions, including three pathological ones.</p>
+      <nav class="subnav" aria-label="Parts of exercise 1">
+        <a href="#r-def">Definitions</a><a href="#r-code">The code</a><a href="#r-views">The two partitions</a><a href="#r-table">Ten functions</a><a href="#r-conv">Convergence</a><a href="#r-slopes">Observed orders</a><a href="#r-diff">Where they differ</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="task-body">
+    <h3 id="r-def">Two ways to cut the area</h3>
+    <div class="prose">
+      <p><b>Riemann.</b> Cut <span class="m">[a, b]</span> into <span class="m">n</span> pieces of width <span class="m">h = (b − a)/n</span>, pick a point <span class="m">x<sub>i</sub></span> in each (left end, midpoint, right end) and add <span class="m">f(x<sub>i</sub>)·h</span>. <b>Lebesgue.</b> Cut the range <span class="m">[0, H]</span> into <span class="m">k</span> levels <span class="m">y<sub>i</sub> = iH/k</span> and add <span class="m">y<sub>i</sub> · μ(f<sup>−1</sup>(y<sub>i</sub>, y<sub>i+1</sub>])</span>. Using <span class="m">y<sub>i</sub></span> (the lower value of each level) gives a lower sum, using <span class="m">y<sub>i+1</sub></span> an upper sum; the <i>mid-level</i> sum is their average.</p>
+      <p>The Lebesgue sum needs the measure of a level set. Estimating it by sampling the domain would just reproduce a Riemann sum, so I compute <span class="m">m(t) = μ{f &gt; t}</span> from the function itself: exactly for six functions (for example <span class="m">m(t) = 1 − √t</span> for <span class="m">x²</span>), by bisection for <span class="m">sin x/x</span> (monotone on <span class="m">[0, π]</span>), and by a measure-theory argument for Dirichlet and Thomae. The level set is then <span class="m">m(y<sub>i</sub>) − m(y<sub>i+1</sub>)</span>. For the unbounded <span class="m">1/√x</span> the range is cut at <span class="m">Y = √k</span> and the tail <span class="m">{f &gt; Y}</span> is added with its lower value <span class="m">Y</span>.</p>
+    </div>
+    <div class="formula">Riemann: Σ<sub>i</sub> <i>f</i>(<i>x<sub>i</sub></i>)·<i>h</i> &nbsp;&nbsp; Lebesgue: Σ<sub>i</sub> <i>y<sub>i</sub></i>·[ <i>m</i>(<i>y<sub>i</sub></i>) − <i>m</i>(<i>y<sub>i+1</sub></i>) ] &nbsp;&nbsp; and &nbsp;∫ <i>f</i> = ∫<sub>0</sub><sup>∞</sup> <i>m</i>(<i>t</i>) d<i>t</i></div>
+
+    <h3 id="r-code">The code</h3>
+    <div class="prose">
+      <p>The listing is printed from the functions the page actually runs, so it cannot drift from what is tested. The highlighted lines carry the logic: the Riemann sum evaluates <span class="m">f</span> once per piece, the Lebesgue sum evaluates the measure <span class="m">m</span> once per level. The two pathological functions that cannot be evaluated in floating point (Dirichlet and Thomae) provide their Riemann sums on the exact rational tags through <code>F.exact</code>.</p>
+    </div>
+    <div class="codebox"><div class="cb-title"><span>JavaScript, the two sums used by every experiment in exercise 1</span><span>printed live from the running code</span></div><pre id="code1"></pre></div>
+    <div class="prose">
+      <p><b>A Lebesgue sum that uses only values of <span class="m">f</span>.</b> The analytic <span class="m">m(t)</span> above needs to know the function. The page therefore also has a <i>sampled</i> variant: draw <span class="m">N = n</span> random points, count how many values land in each of <span class="m">⌈√N⌉</span> levels, and use that share of the domain as the measure of the level. It needs nothing but evaluations of <span class="m">f</span>, but it is random, its sampling error shrinks like <span class="m">N<sup>−1/2</sup></span> (the fitted slopes in the table below are random, between about −0.25 and −0.95), and it cannot be applied to Dirichlet and Thomae, whose values cannot be evaluated in floating point: every floating-point number is rational.</p>
+    </div>
+
+    <h3 id="r-views">See the two partitions</h3>
+    <div class="controls">
+      <div class="field"><label for="fsel">Function</label><select id="fsel"></select></div>
+      <span class="status">The same function is used for the pictures and the convergence chart. 10 pieces, 10 levels.</span>
+    </div>
+    <div class="two">
+      <div class="chart">
+        <h4>Riemann: 10 vertical strips (midpoints)</h4>
+        <p class="look">Teal strips: the value of f at the midpoint of each piece, times the width. Black line: f.</p>
+        <canvas id="cvR"></canvas>
+      </div>
+      <div class="chart">
+        <h4>Lebesgue: 10 horizontal levels</h4>
+        <p class="look">Light indigo: the lower simple function, y<sub>i</sub> wherever y<sub>i</sub> &lt; f ≤ y<sub>i+1</sub>. Dark bands: the level each value of f falls in. Each level counts its height times the total width of its preimage.</p>
+        <canvas id="cvL"></canvas>
+      </div>
+    </div>
+
+    <h3 id="r-table">All ten functions at the same effort</h3>
+    <div class="controls">
+      <div class="field"><label for="nsel">n pieces = k levels</label><select id="nsel"><option>10</option><option>100</option><option selected>1000</option><option>10000</option><option>100000</option><option>1000000</option></select></div>
+      <button class="btn" id="run1">Recompute</button>
+      <span class="status" id="st1"></span>
+    </div>
+    <p class="small prose">Cells are absolute errors against the exact value (the Lebesgue value for Dirichlet, Thomae and the Cantor indicator). “irr. tags” is a Riemann midpoint sum whose sample points are shifted by an irrational fraction of <span class="m">h</span>. “L sampled” is the Lebesgue mid-level sum with the measures estimated from <span class="m">n</span> random points (— where it cannot be computed). Times are milliseconds per call: Riemann midpoint / Lebesgue. ∞ means the sum is infinite.</p>
+    <div class="tbl-box auto scroll"><table class="num" id="t1"><thead><tr><th>Function</th><th>exact</th><th>R left</th><th>R mid</th><th>R right</th><th>R irr. tags</th><th>L lower</th><th>L upper</th><th>L mid-level</th><th>L sampled</th><th>ms (R / L)</th></tr></thead><tbody></tbody></table></div>
+    <div class="facts" id="facts1" style="margin-top:1.2rem"></div>
+    <div class="verdict" id="v1b"></div>
+
+    <h3 id="r-conv">Convergence</h3>
+    <div class="chart">
+      <h4>Error against n, for the function chosen above</h4>
+      <p class="look">Both axes are logarithmic. Solid: Riemann sums. Dashed: Lebesgue sums. A slope of −1 is first order, −2 second order. Errors of exactly 0 are drawn at the 1e-17 floor; infinite errors are left out.</p>
+      <div class="legend" id="leg1"></div>
+      <canvas id="cv1" class="tall"></canvas>
+      <div class="verdict" id="v1"></div>
+    </div>
+
+    <h3 id="r-slopes">Observed order of convergence, all functions</h3>
+    <p class="small prose">Slope of log error against log n, for n from 100 to 100,000 (−1 is first order, −2 second order, 0 means the error does not shrink; “—” means the error is exactly 0, below rounding level, or infinite). It is filled in function by function after the page loads.</p>
+    <div class="tbl-box auto scroll"><table class="num" id="t5"><thead><tr><th>Function</th><th>R left</th><th>R mid</th><th>R right</th><th>L lower</th><th>L upper</th><th>L mid-level</th><th>L sampled</th></tr></thead><tbody></tbody></table></div>
+
+    <h3 id="r-diff">Where the two approaches behave differently</h3>
+    <div class="prose">
+      <p><b>Smooth functions.</b> Left and right sums converge like <span class="m">1/n</span> (unless the endpoint values cancel: for <span class="m">sin x</span> on <span class="m">[0, π]</span> they are trapezoid sums and are second order), the midpoint rule like <span class="m">1/n²</span>. The Lebesgue lower and upper sums bracket the integral and are off by at most <span class="m">H/k</span> times the measure of the domain, so they converge like <span class="m">1/k</span> whatever the function; the mid-level sum is usually better. Riemann sums win in raw accuracy per evaluation when <span class="m">f</span> is smooth, and they need no preimage measure, which for a general <span class="m">f</span> is the hard part.</p>
+      <p><b>Jump discontinuities.</b> Both are first-order, but the midpoint rule can be exact by luck (when no midpoint falls on the jump), as in the two step functions with an even <span class="m">n</span>. This is an accident of the grid, not a property of the method.</p>
+      <p><b>Unbounded <span class="m">1/√x</span>.</b> The Riemann left sum is infinite (<span class="m">f(0) = ∞</span>); midpoint and right sums converge slowly, like <span class="m">n<sup>−1/2</sup></span>. The Lebesgue lower sum increases to 2 from below, which is exactly how the Lebesgue integral of a non-negative function is defined (a supremum of simple functions).</p>
+      <p><b>Dirichlet</b> (1 on rationals, 0 elsewhere). Every upper Riemann sum is 1 and every lower sum is 0, so the Riemann integral does not exist; sums with rational tags (all grid points are rational) give 1, with irrational tags 0. The rationals have measure 0, so every Lebesgue sum is exactly 0 and <span class="m">∫ f = 0</span>. <b>Thomae</b> (1/<i>q</i> at <i>p/q</i>): continuous at every irrational and discontinuous at every rational, so by Lebesgue’s criterion it is Riemann integrable, with integral 0. Riemann sums converge to 0 slowly, because the grid points have small denominators; the Lebesgue sum is 0 at once, since <span class="m">{f &gt; t}</span> is a finite set.</p>
+      <p><b>Fat Cantor set</b> <span class="m">C</span> (remove from <span class="m">[0, 1]</span> an open middle interval of length <span class="m">4<sup>−j</sup></span> from each remaining piece at stage <span class="m">j</span>). It is closed and nowhere dense, yet its measure is <span class="m">1 − Σ 2<sup>j−1</sup>4<sup>−j</sup> = ½</span>. The indicator of <span class="m">C</span> is discontinuous at every point of <span class="m">C</span>, a set of positive measure, so it is <i>not</i> Riemann integrable (Lebesgue’s criterion): every upper Darboux sum is 1 and every lower sum is 0. Riemann sums on a regular grid happen to approach ½ slowly (the grid behaves like a random sample of the set), but nothing guarantees it: tags chosen inside <span class="m">C</span> give 1, tags chosen in the removed gaps give 0. The Lebesgue integral is simply <span class="m">μ(C) = ½</span>, whatever the tags. Unlike Dirichlet, this function can be evaluated numerically, so it also shows the failure of Riemann sums on a function you can actually compute.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 2. THE NORMAL CDF ================= -->
+<section class="task wrap" id="normal">
+  <div class="task-head">
+    <div class="task-num" aria-hidden="true">2</div>
+    <div>
+      <h2>Exercise 2: Numerical computation of the normal CDF</h2>
+      <p class="lede">Why no elementary formula exists, what erf adds, and how well seven methods do against published values.</p>
+      <nav class="subnav" aria-label="Parts of exercise 2">
+        <a href="#n-why">Why not elementary</a><a href="#n-erf">What erf adds</a><a href="#n-code">Seven methods</a><a href="#n-acc">Accuracy</a><a href="#n-eff">Efficiency</a><a href="#n-rel">Error against x</a><a href="#n-conv">Quadrature convergence</a><a href="#n-calc">Calculator</a>
+      </nav>
+    </div>
+  </div>
+
+  <div class="task-body">
+    <h3 id="n-why">Why there is no elementary antiderivative</h3>
+    <div class="formula">Φ(<i>x</i>) = ∫<sub>−∞</sub><sup><i>x</i></sup> φ(<i>t</i>) d<i>t</i> = ½ + (1/√(2π)) ∫<sub>0</sub><sup><i>x</i></sup> e<sup>−<i>t</i>²/2</sup> d<i>t</i> &nbsp;&nbsp; = &nbsp;½ [ 1 + erf(<i>x</i>/√2) ]</div>
+    <div class="prose">
+      <p>Φ would be elementary only if <span class="m">e<sup>−x²/2</sup></span> had an elementary antiderivative, because <span class="m">Φ′ = φ</span>. <b>Liouville’s theorem</b> (1830s; made systematic by Risch and Rosenlicht) gives an exact test for integrands of the form <span class="m">f e<sup>g</sup></span>, and the Gaussian fails it:</p>
+    </div>
+    <div class="deriv">
+      <div class="dstep"><span class="dn">L1</span><div><div class="dm">∫ <i>f</i> e<sup><i>g</i></sup> d<i>x</i> is elementary &nbsp;⇔&nbsp; there is a rational <i>h</i> with <i>h</i>′ + <i>g</i>′<i>h</i> = <i>f</i>, &nbsp;and then ∫ <i>f</i> e<sup><i>g</i></sup> d<i>x</i> = <i>h</i> e<sup><i>g</i></sup></div><p class="dw">Liouville’s criterion, for rational functions f and g with g not constant.</p></div></div>
+      <div class="dstep"><span class="dn">L2</span><div><div class="dm"><i>f</i> = 1, &nbsp;<i>g</i> = −<i>x</i>²/2 &nbsp;⇒&nbsp; we need a rational <i>h</i> with <i>h</i>′ − <i>x</i>·<i>h</i> = 1</div><p class="dw">The constant 1/√(2π) in φ does not change anything. If h = 0 the left side is 0, so h ≠ 0.</p></div></div>
+      <div class="dstep"><span class="dn">L3</span><div><div class="dm"><i>h</i> a polynomial of degree <i>d</i> ≥ 0 &nbsp;⇒&nbsp; deg(<i>h</i>′ − <i>x</i>·<i>h</i>) = <i>d</i> + 1 ≥ 1</div><p class="dw">x·h has degree d + 1 while h′ has degree below d, so nothing cancels the leading term: the left side is never the constant 1.</p></div></div>
+      <div class="dstep"><span class="dn">L4</span><div><div class="dm"><i>h</i> with a pole of order <i>k</i> ≥ 1 at a point <i>c</i> &nbsp;⇒&nbsp; <i>h</i>′ has a pole of order <i>k</i> + 1 at <i>c</i>, &nbsp;<i>x</i>·<i>h</i> of order at most <i>k</i></div><p class="dw">So h′ − x·h still has a pole at c and cannot equal 1. Every rational function is either a polynomial or has a pole, so L3 and L4 cover all cases.</p></div></div>
+      <div class="dstep final"><span class="dn">L5</span><div><div class="dm">no rational solution &nbsp;⇒&nbsp; ∫ e<sup>−<i>x</i>²/2</sup> d<i>x</i> is not elementary &nbsp;⇒&nbsp; Φ is not elementary</div><p class="dw">By L1. An elementary Φ would be an elementary antiderivative of φ.</p></div></div>
+    </div>
+
+    <h3 id="n-erf">What erf adds, and why numbers still need an algorithm</h3>
+    <div class="prose">
+      <p><b>What erf changes.</b> The error function <span class="m">erf(z) = (2/√π) ∫<sub>0</sub><sup>z</sup> e<sup>−t²</sup> dt</span> is a <i>name</i> for exactly that non-elementary integral. With it Φ has an exact closed form, <span class="m">Φ(x) = ½ erfc(−x/√2)</span>, and erf has clean properties (odd, a known Taylor series, a continued fraction for the tail). But a name is not a number: to get a value you still need an algorithm, such as quadrature, a series, a continued fraction or a fitted rational approximation, which is what libraries do.</p>
+      <p><b>Two clarifications.</b> Liouville’s theorem is about <i>antiderivatives</i>; the definite integral over the whole line is perfectly computable, <span class="m">∫<sub>−∞</sub><sup>∞</sup> e<sup>−x²/2</sup> dx = √(2π)</span> (square the integral and switch to polar coordinates), which is why φ integrates to 1 even though Φ(<i>x</i>) has no closed form. And erf is the regularized incomplete gamma function, <span class="m">erf(z) = P(½, z²)</span>, so Φ belongs to the same family as the chi-square distribution functions.</p>
+    </div>
+
+    <h3 id="n-code">Seven methods, and the code of the best one</h3>
+    <div class="prose">
+      <p>The seven methods: <b>trapezoid</b> and <b>Simpson</b> on <span class="m">½ + ∫<sub>0</sub><sup>x</sup> φ</span> with <span class="m">n</span> pieces; the <b>Maclaurin series of erf</b>, <span class="m">(2/√π) Σ (−1)<sup>j</sup> z<sup>2j+1</sup> / (j!(2j+1))</span> with <span class="m">z = x/√2</span>; the <b>Kummer series</b> <span class="m">½ + φ(x) Σ x<sup>2j+1</sup>/(1·3·5···(2j+1))</span>, which has only positive terms; <b>Abramowitz–Stegun 7.1.26</b>, a five-term fit of erf with error up to <span class="m">1.5 × 10⁻⁷</span>; <b>Abramowitz–Stegun 26.2.17</b>, a five-term fit of Φ directly (error up to <span class="m">7.5 × 10⁻⁸</span>); and a <b>hybrid</b>: the Kummer series for |<i>x</i>| &lt; 2, and for the tail the continued fraction <span class="m">Φ(−x) = φ(x) / (x + 1/(x + 2/(x + 3/(x + …))))</span> evaluated backwards with 80 terms, so the small tail is computed directly, never as 1 − Φ.</p>
+    </div>
+    <div class="codebox"><div class="cb-title"><span>JavaScript, the hybrid method (series near the centre, continued fraction in the tails)</span><span>printed live from the running code</span></div><pre id="code2"></pre></div>
+
+    <div class="controls">
+      <div class="field"><label for="nq">n pieces (trapezoid, Simpson)</label><select id="nq"><option>10</option><option>100</option><option selected>1000</option><option>10000</option></select></div>
+      <button class="btn" id="run2">Recompute</button>
+      <span class="status" id="st2"></span>
+    </div>
+
+    <h3 id="n-acc">Accuracy against published values</h3>
+    <p class="small prose">Reference values: Φ(0.5), Φ(1), Φ(1.96) and Φ(2) agree with Abramowitz–Stegun Table 26.1 as reproduced in the J wiki essay (which also lists erf from Table 7.1) and with the six-digit table of the University of Ulm (x from 0 to 3); the cdflib documentation gives Φ(1.96) = 0.9750021048517796 and 1 − Φ(5) = 2.866516 × 10⁻⁷. The 16-digit values in the table, including the far-tail values at x = −6, −8 and −10 that the published tables do not reach, agree to the last digit with the page’s own 70-digit computation described below, and every published digit above agrees with them. Cells are <b>relative</b> errors |computed − reference| / reference.</p>
+    <div class="tbl-box auto scroll"><table class="num" id="t2"><thead></thead><tbody></tbody></table></div>
+    <div class="facts" id="facts2" style="margin-top:1.2rem"></div>
+    <div class="verdict" id="v2"></div>
+
+    <h3 id="n-eff">Efficiency and error over [−8, 8]</h3>
+    <p class="small prose">Cost is nanoseconds per call in your browser. Errors are measured on 1,601 points (step 0.01) against an independent reference: the Maclaurin series of Φ evaluated in 70-digit fixed-point BigInt arithmetic (π from Machin’s formula). That reference agrees with the 12 web values of the table above to a relative difference of at most <b id="refAgree">…</b> (the rounding of the published digits).</p>
+    <div class="tbl-box auto scroll"><table class="num" id="t3"><thead><tr><th>Method</th><th>ns per call</th><th>max absolute error</th><th>max relative error</th></tr></thead><tbody></tbody></table></div>
+
+    <h3 id="n-rel">Relative error against x, and why the hybrid switches at 2</h3>
+    <div class="chart">
+      <h4>Relative error in the left tail, x from 0 to −10</h4>
+      <p class="look">Horizontal axis: how far into the left tail. Vertical axis: relative error, on a log scale; lower is better. Teal: the hybrid.</p>
+      <div class="legend" id="leg3"></div>
+      <canvas id="cv3" class="tall"></canvas>
+      <div class="verdict" id="v4"></div>
+    </div>
+    <p class="small prose" style="margin-top:1rem">The hybrid uses the series for |x| &lt; 2 and the continued fraction beyond. The table below (relative errors against the 70-digit reference) shows why: the series error grows as Φ(−x) shrinks (an absolute error of about 1e-16 divided by a smaller and smaller Φ), while the continued fraction needs more terms when x is small. The threshold at 2 is where the two errors cross: there the series (about 5e-15) and an 80-term fraction (about 9e-15) are about equally accurate. Below 2 the series is better; above 2 the fraction is better, and the series loses digits (about 9e-14 at x = −3, 6e-10 at x = −5). More terms would let the fraction take over at a smaller |x|.</p>
+    <div class="tbl-box auto scroll"><table class="num" id="t4"><thead></thead><tbody></tbody></table></div>
+
+    <h3 id="n-conv">Convergence of the quadrature rules</h3>
+    <div class="chart">
+      <h4>Absolute error against n, at x = 1.96 and x = 5</h4>
+      <p class="look">Both axes are logarithmic. Solid: x = 1.96. Dashed: x = 5. The flat part near 1e-16 is double-precision rounding, not the method.</p>
+      <div class="legend" id="leg2"></div>
+      <canvas id="cv2" class="tall"></canvas>
+      <div class="verdict" id="v3"></div>
+    </div>
+
+    <h3 id="n-calc">Try it: Φ(x) with every method</h3>
+    <div class="controls">
+      <div class="field"><label for="cx">x (|x| ≤ 12)</label><input id="cx" type="text" value="-3.5" spellcheck="false" autocomplete="off"></div>
+      <button class="btn" id="cgo">Compute</button>
+      <span class="status">Quadrature uses the n chosen above.</span>
+    </div>
+    <div class="tbl-box auto scroll"><table class="num" id="t6"><thead><tr><th>Method</th><th>Φ(x)</th><th>relative error</th></tr></thead><tbody></tbody></table></div>
+    <div class="callout"><b>Sources.</b> <a href="https://code.jsoftware.com/wiki/Essays/Normal_CDF">Normal CDF essay (J wiki), compared with Abramowitz–Stegun Tables 26.1 and 7.1</a>; <a href="https://docs.rs/cdflib">cdflib documentation (Φ(1.96) and 1 − Φ(5) computed directly in the tail)</a>; <a href="https://www.uni-ulm.de/fileadmin/website_uni_ulm/mawi.inst.110/lehre/ws08/wr/Quantile.pdf">University of Ulm table of Φ (six digits, x from 0 to 3)</a>; <a href="https://faculty.etsu.edu/gardnerr/4047/notes-Hogg-McKean-Craig/Hogg-McKean-Craig-3-4.pdf">Hogg–McKean–Craig notes (the normal distribution)</a>, from the assignment.</div>
+  </div>
+</section>
+</main>
+
+<footer class="wrap">
+  <p>Riccardo Santoni, student ID 2007183, Statistics course, 2026</p>
+</footer>
+
+<script>
+/* ============================================================
+   SHARED HELPERS (same utilities as the other pages)
+   ============================================================ */
+const INC = 0x6D2B79F5;                                    // mulberry32 increment
+function mixU(a) { let t = Math.imul(a ^ (a >>> 15), a | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+/* seeded random numbers (mulberry32) */
+function mulberry32(seed) { let a = seed >>> 0; return () => { a = (a + INC) >>> 0; return mixU(a); }; }
+
+const $ = id => document.getElementById(id);
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const redrawers = [];                     // functions to call when size or theme changes
+const fmtN = v => Number(v).toLocaleString('en-US');
+const SUPD = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
+const supStr = s => String(s).replace(/[-0-9]/g, c => SUPD[c]);
+const sci = (v, d = 1) => { if (v === 0) return '0'; if (!Number.isFinite(v)) return '—'; const [m, e] = v.toExponential(d).split('e'); return `${m.replace('-', '−')} × 10${supStr(parseInt(e, 10))}`; };
+const fe = v => !isFinite(v) ? '∞' : v === 0 ? '0' : v.toExponential(1);   // compact form for the tables
+const avg = a => a.reduce((s, v) => s + v, 0) / a.length;
+const tileHtml = (v, label, warn) => `<div class="fact${warn ? ' warn' : ''}"><b${String(v).includes('×') ? ' class="sci"' : ''}>${v}</b><span>${label}</span></div>`;
+
+function setupCanvas(cv) {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  const w = Math.max(10, Math.round(r.width)), h = Math.max(10, Math.round(r.height));
+  if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  return { ctx, w, h };
+}
+function hexA(color, a) {                 // '#rrggbb' -> rgba
+  const c = color.replace('#', '');
+  if (c.length !== 6) return color;
+  return `rgba(${parseInt(c.slice(0, 2), 16)},${parseInt(c.slice(2, 4), 16)},${parseInt(c.slice(4, 6), 16)},${a})`;
+}
+
+/* theme toggle, and the section highlighted in the top bar */
+(() => {
+  const root = document.documentElement;
+  // the site opens in light mode; a switch to dark is kept only while moving between pages in this visit
+  try { const t = sessionStorage.getItem('ec-theme'); if (t) root.dataset.theme = t; } catch (e) {}
+  $('themeBtn').addEventListener('click', () => {
+    const dark = root.dataset.theme === 'dark';
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { sessionStorage.setItem('ec-theme', root.dataset.theme); } catch (e) {}
+    redrawers.forEach(fn => fn());
+  });
+  let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => redrawers.forEach(fn => fn()), 120); });
+  const links = [...document.querySelectorAll('.nav a')];
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id));
+  }), { rootMargin: '-45% 0px -50% 0px' });
+  document.querySelectorAll('section.task').forEach(s => io.observe(s));
+})();
+
+/* ============================================================
+   EXERCISE 1: THE FUNCTIONS AND THE TWO SUMS
+   ============================================================ */
+const gcd = (a, b) => { while (b) [a, b] = [b, a % b]; return a; };
+const sinc = x => x === 0 ? 1 : Math.sin(x) / x;
+
+/* indicator of the fat Cantor set: at stage j an open middle interval of length 4^−j is removed from each remaining piece */
+function fatCantor(x) {
+  let a = 0, b = 1;
+  for (let j = 1; j < 40; j++) {
+    const gap = Math.pow(4, -j), mid = (a + b) / 2, l = mid - gap / 2, r = mid + gap / 2;
+    if (x > l && x < r) return 0;          // x is in a removed gap
+    if (x <= l) b = l; else a = r;         // follow the piece that contains x
+    if (b - a < 1e-15) break;
+  }
+  return 1;
+}
+/* Thomae's function on the exact rational tags p/q: f(p/q) = 1/q in lowest terms, which is gcd(p, q)/q */
+function thomaeSum(n, tag) {
+  if (tag === 3) return 0;                 // irrational tags: f = 0 everywhere
+  let s = 0;
+  for (let i = 0; i < n; i++) {
+    const p = tag === 0 ? i : tag === 1 ? 2 * i + 1 : i + 1, q = tag === 1 ? 2 * n : n;
+    s += gcd(p, q) / q;
+  }
+  return s / n;
+}
+
+/* The ten functions. I is the exact integral, hi the largest value of f,
+   m(t) = μ{x : f(x) > t} the measure the Lebesgue sum needs. */
+const FN = [
+  { id: 'sin', n: 'sin x on [0, π]', a: 0, b: Math.PI, f: Math.sin, I: 2, hi: 1,
+    m: t => t < 0 ? Math.PI : t >= 1 ? 0 : Math.PI - 2 * Math.asin(t) },        // sin x > t on (asin t, π − asin t)
+  { id: 'sq', n: 'x² on [0, 1]', a: 0, b: 1, f: x => x * x, I: 1 / 3, hi: 1,
+    m: t => t < 0 ? 1 : t >= 1 ? 0 : 1 - Math.sqrt(t) },                         // x² > t on (√t, 1]
+  { id: 'st', n: '1 if x<½, 3 if x≥½', a: 0, b: 1, f: x => x < .5 ? 1 : 3, I: 2, hi: 3,
+    m: t => t < 1 ? 1 : t < 3 ? .5 : 0 },
+  { id: 'abs', n: '|x − ½| on [0, 1]', a: 0, b: 1, f: x => Math.abs(x - .5), I: .25, hi: .5,
+    m: t => t < 0 ? 1 : t >= .5 ? 0 : 1 - 2 * t },                               // |x − ½| > t outside (½ − t, ½ + t)
+  { id: 'inv', n: '1/√x on (0, 1]', a: 0, b: 1, f: x => 1 / Math.sqrt(x), I: 2, hi: Infinity,
+    m: t => t <= 1 ? 1 : 1 / (t * t) },                                          // 1/√x > t on (0, 1/t²)
+  { id: 'ind', n: '1 if x<½, 0 if x≥½', a: 0, b: 1, f: x => x < .5 ? 1 : 0, I: .5, hi: 1,
+    m: t => t < 0 ? 1 : t < 1 ? .5 : 0 },
+  { id: 'sinc', n: 'sin x / x on [0, π]', a: 0, b: Math.PI, f: sinc, I: 1.8519370519824662, hi: 1,
+    m: t => {                                                                    // sin x / x decreases on [0, π]: bisection for where it crosses t
+      if (t < 0) return Math.PI;
+      if (t >= 1) return 0;
+      let lo = 0, hi = Math.PI;
+      for (let j = 0; j < 50; j++) { const q = (lo + hi) / 2; if (sinc(q) > t) lo = q; else hi = q; }
+      return lo;
+    } },
+  { id: 'cant', n: 'Fat Cantor set indicator (R: not integrable)', a: 0, b: 1, f: fatCantor, I: .5, hi: 1,
+    m: t => t < 0 ? 1 : t < 1 ? .5 : 0 },                                        // μ(C) = ½
+  { id: 'dir', n: 'Dirichlet (R: not integrable)', a: 0, b: 1, I: 0, hi: 1,
+    m: t => t < 0 ? 1 : 0,                                                       // {f > t} ⊂ rationals, measure 0
+    exact: (n, tag) => tag === 3 ? 0 : 1 },                                      // grid tags are rational (f = 1), shifted tags irrational (f = 0)
+  { id: 'thom', n: 'Thomae', a: 0, b: 1, I: 0, hi: 1,
+    m: t => t < 0 ? 1 : 0,                                                       // {f > t} is a finite set for t > 0
+    exact: thomaeSum }
+];
+
+const TAG_OFFSET = [0, .5, 1, .41421356];   // left end, midpoint, right end, shifted by √2 − 1 (irrational) times h
+/* Riemann sum with n equal pieces; tag 0 left, 1 midpoint, 2 right, 3 irrational shift */
+function riemann(F, n, tag) {
+  if (F.exact) return F.exact(n, tag);              // Dirichlet and Thomae: exact rational tags
+  const h = (F.b - F.a) / n, o = TAG_OFFSET[tag];
+  let s = 0;
+  for (let i = 0; i < n; i++) s += F.f(F.a + (i + o) * h);  // core: one value of f per piece
+  return s * h;                                     // core: times the common width h
+}
+/* Lebesgue sums with k levels: returns [lower, upper, mid-level] */
+function lebesgue(F, k) {
+  const finite = isFinite(F.hi), H = finite ? F.hi : Math.sqrt(k);
+  const y = i => i * H / k;                         // level i (not i·(H/k): that can round the top level below H)
+  let lower = 0, upper = 0, prev = F.m(0);
+  for (let i = 0; i < k; i++) {
+    const next = F.m(y(i + 1));
+    const mu = prev - next;                         // core: measure of the preimage {y_i < f ≤ y_i+1}
+    lower += y(i) * mu;                             // core: lower value of the level times that measure
+    upper += y(i + 1) * mu;                         // core: upper value of the level times that measure
+    prev = next;
+  }
+  if (!finite) { lower += H * prev; return [lower, Infinity, lower]; }  // unbounded f: the tail {f > H} counted at height H
+  return [lower, upper, (lower + upper) / 2];
+}
+/* Lebesgue mid-level sum with the level measures estimated from N random points (uses only values of f) */
+function lebesgueSampled(F, N) {
+  if (F.exact) return NaN;                          // Dirichlet and Thomae cannot be evaluated
+  const k = Math.ceil(Math.sqrt(N)), finite = isFinite(F.hi), H = finite ? F.hi : Math.sqrt(k), h = H / k;
+  const count = new Float64Array(k + 1), rnd = mulberry32(12345);
+  for (let j = 0; j < N; j++) {
+    let i = Math.floor(F.f(F.a + (F.b - F.a) * rnd()) / h);   // the level of this value
+    if (i > k) i = k;                                         // values at or above H go to the top cell
+    count[i]++;
+  }
+  let s = H * count[k];
+  for (let i = 0; i < k; i++) s += (i + .5) * h * count[i];  // mid-level value times the share of points in the level
+  return s * (F.b - F.a) / N;
+}
+
+/* ============================================================
+   EXERCISE 2: THE NORMAL CDF
+   ============================================================ */
+const SQ2 = Math.SQRT2, SQ2PI = Math.sqrt(2 * Math.PI);
+const phi = x => Math.exp(-x * x / 2) / SQ2PI;      // standard normal density φ
+
+function phiTrap(x, n) {                  // trapezoid rule on ½ + ∫₀ˣ φ
+  const h = x / n;
+  let s = .5 * (phi(0) + phi(x));
+  for (let i = 1; i < n; i++) s += phi(i * h);
+  return .5 + s * h;
+}
+function phiSimp(x, n) {                  // Simpson's rule on ½ + ∫₀ˣ φ (n made even)
+  n += n & 1;
+  const h = x / n;
+  let s = phi(0) + phi(x);
+  for (let i = 1; i < n; i++) s += (i & 1 ? 4 : 2) * phi(i * h);
+  return .5 + s * h / 3;
+}
+function erfSeries(z) {                   // Maclaurin series of erf: (2/√π) Σ (−1)^j z^(2j+1) / (j!(2j+1))
+  let t = z, s = z;
+  for (let j = 1; j < 300; j++) {
+    t *= -z * z / j;
+    const u = t / (2 * j + 1);
+    s += u;
+    if (j > 5 && Math.abs(u) < 1e-18 * Math.abs(s)) break;
+  }
+  return 2 / Math.sqrt(Math.PI) * s;
+}
+function erfAS(x) {                       // Abramowitz–Stegun 7.1.26, |error| ≤ 1.5·10⁻⁷
+  const s = Math.sign(x);
+  x = Math.abs(x);
+  const t = 1 / (1 + .3275911 * x);
+  return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - .284496736) * t + .254829592) * t * Math.exp(-x * x));
+}
+function phiAS(x) {                       // Abramowitz–Stegun 26.2.17, |error| < 7.5·10⁻⁸
+  const a = Math.abs(x), t = 1 / (1 + .2316419 * a);
+  const p = t * (.31938153 + t * (-.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  const q = phi(a) * p;
+  return x >= 0 ? 1 - q : q;
+}
+/* Kummer series: Φ(x) = ½ + φ(x)·Σ x^(2j+1) / (1·3·5···(2j+1)), every term with the same sign */
+function phiSeries(x) {
+  let term = x, sum = x;
+  for (let j = 1; j < 400; j++) {
+    term *= x * x / (2 * j + 1);                    // core: each term from the previous one
+    sum += term;
+    if (Math.abs(term) <= 1e-17 * Math.abs(sum)) break;
+  }
+  return .5 + phi(x) * sum;                         // core: one multiplication by φ(x) at the end
+}
+/* Laplace's continued fraction for the tail: Φ(−a) = φ(a) / (a + 1/(a + 2/(a + 3/(a + …)))) */
+function phiCF(x, N) {
+  const a = Math.abs(x);
+  let t = a;
+  for (let k = N; k > 0; k--) t = a + k / t;        // core: evaluated backwards, from the N-th level to the first
+  const tail = phi(a) / t;                          // core: the small tail, computed directly
+  return x > 0 ? 1 - tail : tail;
+}
+/* the hybrid: series near the centre, continued fraction in the tails */
+function phiHybrid(x) {
+  const a = Math.abs(x);
+  if (a < 2) return phiSeries(x);                   // core: |x| < 2, the series
+  if (a > 40) return x > 0 ? 1 : 0;                 // φ(40) underflows: beyond double precision
+  return phiCF(x, 80);                              // core: |x| ≥ 2, 80 levels of the fraction
+}
+
+/* independent reference: the Maclaurin series of Φ in 70-digit fixed-point BigInt arithmetic */
+const SCL = 10n ** 70n;                             // a value v is stored as v·10⁷⁰
+function atanInv(k) {                               // arctan(1/k) by its Taylor series
+  let t = SCL / BigInt(k), s = t, k2 = BigInt(k * k), n = 1n, sg = -1n;
+  while (t > 0n) { t /= k2; n += 2n; s += sg * (t / n); sg = -sg; }
+  return s;
+}
+const PI_BIG = 16n * atanInv(5) - 4n * atanInv(239);          // Machin's formula
+function isqrt(n) {                                 // integer square root by Newton's method
+  let x = BigInt(Math.floor(Math.sqrt(Number(n)))), y, d;
+  do { y = (x + n / x) >> 1n; d = y > x ? y - x : x - y; x = y; } while (d > 1n);
+  return x;
+}
+const SQRT2PI_BIG = isqrt(2n * PI_BIG * SCL), REF_CACHE = new Map();
+function refBig(x) {
+  if (REF_CACHE.has(x)) return REF_CACHE.get(x);
+  const X = (BigInt(Math.round(x * 2 ** 60)) * SCL) >> 60n, X2 = X * X / SCL;   // x in fixed point
+  let t = X, s = X;
+  for (let n = 1; n < 800 && t !== 0n; n++) {       // Σ (−1)ⁿ x^(2n+1) / (2ⁿ n! (2n+1))
+    t = -t * X2 / SCL / (2n * BigInt(n));
+    s += t / BigInt(2 * n + 1);
+  }
+  const v = Number(SCL / 2n + s * SCL / SQRT2PI_BIG) / 1e70;
+  REF_CACHE.set(x, v);
+  return v;
+}
+
+const PM = [
+  ['Trapezoid', (x, n) => phiTrap(x, n)],
+  ['Simpson', (x, n) => phiSimp(x, n)],
+  ['erf Maclaurin series', x => .5 * (1 + erfSeries(x / SQ2))],
+  ['Kummer series', phiSeries],
+  ['A&S 7.1.26 (erf fit)', x => .5 * (1 + erfAS(x / SQ2))],
+  ['A&S 26.2.17 (Φ fit)', phiAS],
+  ['Hybrid: series + continued fraction', phiHybrid]
+];
+const HYB = PM.length - 1;
+/* published values (see the sources at the end of the page) */
+const REF = [[0.5, 0.6914624612740131], [1, 0.8413447460685429], [1.96, 0.9750021048517795], [2, 0.9772498680518208],
+  [3, 0.9986501019683699], [4, 0.9999683287581669], [-1, 0.15865525393145705], [-3, 0.0013498980316300945],
+  [-5, 2.866515718791939e-7], [-6, 9.865876450376981e-10], [-8, 6.220960574271784e-16], [-10, 7.619853024160526e-24]];
+
+/* ============================================================
+   PAGE CODE
+   ============================================================ */
+/* time a call: repeat it until about 2·10⁵ elementary steps, return [value, ms per call] */
+function timeIt(fn, n) {
+  const reps = Math.max(1, Math.floor(2e5 / n)), t = performance.now();
+  let v;
+  for (let i = 0; i < reps; i++) v = fn();
+  return [v, (performance.now() - t) / reps];
+}
+/* least-squares slope of log error against log n, for n ≥ 100 and errors above 1e-14 (below that, rounding dominates) */
+function slope(p) {
+  const q = p.filter(([n, e]) => n >= 100 && isFinite(e) && e > 1e-14);
+  if (q.length < 3) return NaN;
+  const x = q.map(a => Math.log10(a[0])), y = q.map(a => Math.log10(a[1])), mx = avg(x), my = avg(y);
+  let sxy = 0, sxx = 0;
+  x.forEach((v, i) => { sxy += (v - mx) * (y[i] - my); sxx += (v - mx) ** 2; });
+  return sxy / sxx;
+}
+
+/* ---------- chart kit: log-log (or lin-log) lines, canvas, no libraries ---------- */
+/* series: [{ n: name, c: colour variable, p: [[x, y], …], d: dashed }] */
+function loglog(cv, leg, S, xLabel, lin) {
+  const lx = lin ? (v => v) : Math.log10, floor = 1e-17;
+  const { ctx, w, h } = setupCanvas(cv), L = 48, R = 10, T = 8, B = 28, pw = w - L - R, ph = h - T - B;
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const s of S) for (const [x, y] of s.p) {
+    if (!isFinite(y)) continue;
+    const a = lx(x), b = Math.log10(Math.max(y, floor));
+    x0 = Math.min(x0, a); x1 = Math.max(x1, a); y0 = Math.min(y0, b); y1 = Math.max(y1, b);
+  }
+  x0 = Math.floor(x0); x1 = Math.ceil(x1); y0 = Math.floor(y0); y1 = Math.ceil(y1);
+  if (y1 <= y0) y1 = y0 + 1;
+  const X = x => L + (lx(x) - x0) / (x1 - x0) * pw;
+  const Y = y => T + ph - (Math.log10(Math.max(y, floor)) - y0) / (y1 - y0) * ph;
+  // grid lines and labels
+  ctx.font = '10px ' + css('--sans'); ctx.fillStyle = css('--muted'); ctx.strokeStyle = css('--rule'); ctx.lineWidth = 1;
+  for (let e = y0; e <= y1; e += Math.ceil((y1 - y0) / 6)) {
+    const y = Y(10 ** e);
+    ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + pw, y); ctx.stroke();
+    ctx.textAlign = 'right'; ctx.fillText('1e' + e, L - 4, y + 3);
+  }
+  ctx.textAlign = 'center';
+  for (let e = x0; e <= x1; e++) ctx.fillText(lin ? String(e) : '1e' + e, L + (e - x0) / (x1 - x0) * pw, h - 14);
+  ctx.textAlign = 'right'; ctx.fillText(xLabel, L + pw, h - 2);
+  // the series: a line through the finite points, and a dot on each
+  for (const s of S) {
+    const col = css(s.c);
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2; ctx.setLineDash(s.d ? [5, 4] : []);
+    ctx.beginPath();
+    let on = false;
+    for (const [x, y] of s.p) {
+      if (!isFinite(y)) { on = false; continue; }
+      if (on) ctx.lineTo(X(x), Y(y)); else ctx.moveTo(X(x), Y(y));
+      on = true;
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+    for (const [x, y] of s.p) if (isFinite(y)) { ctx.beginPath(); ctx.arc(X(x), Y(y), 2.6, 0, 7); ctx.fill(); }
+  }
+  leg.innerHTML = S.map(s => s.d
+    ? `<span><i class="dash" style="border-top-color:var(${s.c})"></i>${s.n}</span>`
+    : `<span><i class="line" style="background:var(${s.c})"></i>${s.n}</span>`).join('');
+}
+
+/* ---------- the code listings, printed from the running functions ---------- */
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function showCode(id, fns) {
+  $(id).innerHTML = fns.map(fn => fn.toString().split('\n').map(l => {
+    const core = /\/\/ core:/.test(l), m = l.match(/^(.*?)(\/\/.*)$/);
+    const body = m ? esc(m[1].replace(/\s+$/, '')) + ' <span class="cm">' + esc(m[2].replace('core: ', '')) + '</span>' : esc(l);
+    return `<span class="ln${core ? ' core' : ''}">${body}</span>`;
+  }).join('')).join('<span class="ln"> </span>');
+}
+
+/* ---------- exercise 1 ---------- */
+const NS = [10, 32, 100, 316, 1000, 3162, 1e4, 31623, 1e5, 316228, 1e6], CURVES = {};
+/* the error of every method against n, for one function (cached) */
+function curves(F, nMax = 1e6) {
+  const key = F.id + nMax;
+  if (CURVES[key]) return CURVES[key];
+  const R = [[], [], []], L = [[], [], []], M = [];
+  for (const n of NS) {
+    if (n > nMax) break;
+    for (let k = 0; k < 3; k++) R[k].push([n, Math.abs(riemann(F, n, k) - F.I)]);
+    const l = lebesgue(F, n), m = lebesgueSampled(F, n);
+    for (let k = 0; k < 3; k++) L[k].push([n, Math.abs(l[k] - F.I)]);
+    M.push([n, isNaN(m) ? NaN : Math.abs(m - F.I)]);
+  }
+  return CURVES[key] = [
+    { n: 'Riemann left', c: '--pub', p: R[0] },
+    { n: 'Riemann midpoint', c: '--key', p: R[1] },
+    { n: 'Riemann right', c: '--step', p: R[2] },
+    { n: 'Lebesgue lower', c: '--hash', p: L[0], d: 1 },
+    { n: 'Lebesgue upper', c: '--ink', p: L[1], d: 1 },
+    { n: 'Lebesgue mid-level', c: '--blue', p: L[2], d: 1 },
+    { n: 'Lebesgue sampled', c: '--muted', p: M, d: 1 }
+  ];
+}
+function run1() {
+  const n = +$('nsel').value, res = {};
+  let rows = '', dmax = 0, dWorst = '';
+  $('st1').textContent = 'Computing…';
+  for (const F of FN) {
+    const R = [0, 1, 2, 3].map(k => riemann(F, n, k));
+    const tR = timeIt(() => riemann(F, n, 1), n)[1], [L, tL] = timeIt(() => lebesgue(F, n), n), mc = lebesgueSampled(F, n);
+    const err = v => `<td>${fe(Math.abs(v - F.I))}</td>`;
+    if (!['dir', 'inv', 'cant'].includes(F.id)) {           // the seven bounded Riemann-integrable functions
+      const d = Math.abs(R[1] - L[2]);
+      if (d >= dmax) { dmax = d; dWorst = F.n; }
+    }
+    res[F.id] = { R, L, tR, tL };
+    rows += `<tr><td>${F.n}</td><td>${+F.I.toPrecision(8)}</td>${R.map(err).join('')}${L.map(err).join('')}${isNaN(mc) ? '<td>—</td>' : err(mc)}<td>${tR.toFixed(3)} / ${tL.toFixed(3)}</td></tr>`;
+  }
+  $('t1').tBodies[0].innerHTML = rows;
+  $('facts1').innerHTML =
+    tileHtml(sci(dmax), `largest gap between Riemann midpoint and Lebesgue mid-level, on the 7 regular functions (n = k = ${fmtN(n)})`) +
+    tileHtml('1 vs 0', 'Dirichlet: Riemann sum on the grid tags vs the Lebesgue sum (the integral is 0)', true) +
+    tileHtml(res.cant.R[1].toFixed(4), 'Riemann midpoint sum on the fat Cantor indicator: depends on the tags (Lebesgue: ½)', true) +
+    tileHtml(res.inv.L[0].toFixed(4), 'Lebesgue lower sum for 1/√x, rising to 2 from below') +
+    tileHtml((res.sinc.tL / Math.max(res.sinc.tR, 1e-6)).toFixed(0) + '×', 'time of the Lebesgue sum over the Riemann sum on sin x / x (a bisection for every level)');
+  $('v1b').innerHTML = `<b>Same value?</b> On the seven bounded Riemann-integrable functions (all except Dirichlet and the Cantor indicator, which are not Riemann integrable, and the improper 1/√x), the Riemann midpoint sum and the Lebesgue mid-level sum differ by at most <b>${fe(dmax)}</b> at n = k = ${fmtN(n)} (largest for ${dWorst}); both approach the exact value, so the two approaches converge to the same number. On the Dirichlet function the Riemann columns stay at error 1 whatever n (and 0 with irrational tags), and on the Cantor indicator they approach ½ only because a regular grid samples the set evenly, so the answer depends on the tags; the Lebesgue sums are right in both cases. <b>Cost.</b> The Riemann sum needs n evaluations of f; the analytic Lebesgue sum needs k evaluations of the measure m(t), one closed-form formula each, except for sin x / x where each needs a 50-step bisection; the sampled variant needs n evaluations of f like Riemann, but converges only like n<sup>−1/2</sup>. Milliseconds per call, Riemann / Lebesgue: sin x ${res.sin.tR.toFixed(3)} / ${res.sin.tL.toFixed(3)}, sin x / x ${res.sinc.tR.toFixed(3)} / ${res.sinc.tL.toFixed(3)}.`;
+  $('st1').textContent = `Done at n = k = ${fmtN(n)}.`;
+}
+/* the slopes table is filled one function at a time, so the page stays responsive */
+function slopeTable() {
+  const tb = $('t5').tBodies[0];
+  tb.innerHTML = '';
+  let i = 0;
+  const step = () => {
+    if (i >= FN.length) return;
+    const F = FN[i++], S = curves(F, 1e5);
+    tb.insertAdjacentHTML('beforeend', `<tr><td>${F.n}</td>${S.map(q => { const v = slope(q.p); return `<td>${isNaN(v) ? '—' : v.toFixed(2)}</td>`; }).join('')}</tr>`);
+    setTimeout(step, 0);
+  };
+  step();
+}
+function chart1() {
+  const F = FN[+$('fsel').value], S = curves(F), sl = S.map(s => slope(s.p));
+  loglog($('cv1'), $('leg1'), S, 'n (pieces or levels)');
+  $('v1').innerHTML = `${F.n}. Fitted slopes of log error against log n (for n ≥ 100, errors above 1e-14): ` +
+    S.map((s, i) => `${s.n} <b>${isNaN(sl[i]) ? 'exact or flat' : sl[i].toFixed(2)}</b>`).join(', ') +
+    '. A slope of −1 is first order, −2 second order.';
+}
+/* one picture: mode 0 = Riemann strips at the midpoints, mode 1 = Lebesgue levels (each column coloured by the level of f) */
+function panel(ctx, F, mode, X0, Y0, W, H0, K) {
+  const P = 6, pw = W - 2 * P, ph = H0 - 2 * P, H = isFinite(F.hi) ? F.hi : 6;
+  const X = x => X0 + P + (x - F.a) / (F.b - F.a) * pw, Y = y => Y0 + P + ph - Math.min(y, H) / H * ph, base = Y0 + P + ph;
+  if (mode === 0) {
+    const s = (F.b - F.a) / K;
+    ctx.fillStyle = hexA(css('--key'), .5);
+    for (let i = 0; i < K; i++) {
+      const y = Math.min(F.f(F.a + (i + .5) * s), H);
+      ctx.fillRect(X(F.a + i * s) + 1, Y(y), X(F.a + (i + 1) * s) - X(F.a + i * s) - 2, base - Y(y));
+    }
+  } else {
+    const s = H / K, hash = css('--hash');
+    for (let px = 0; px < pw; px++) {
+      const v = Math.min(F.f(F.a + (px + .5) / pw * (F.b - F.a)), H - 1e-9), i = Math.floor(v / s);
+      ctx.fillStyle = hexA(hash, .18);                                   // the lower simple function
+      ctx.fillRect(X0 + P + px, Y(i * s), 1, base - Y(i * s));
+      ctx.fillStyle = hexA(hash, i % 2 ? .75 : .5);                      // the level that f falls in
+      ctx.fillRect(X0 + P + px, Y((i + 1) * s), 1, Y(i * s) - Y((i + 1) * s));
+    }
+  }
+  ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1.6; ctx.beginPath();     // the curve itself
+  for (let px = 0; px <= pw; px++) {
+    const y = Y(F.f(F.a + px / pw * (F.b - F.a)));
+    if (px) ctx.lineTo(X0 + P + px, y); else ctx.moveTo(X0 + P + px, y);
+  }
+  ctx.stroke();
+}
+function viz() {
+  const F = FN[+$('fsel').value];
+  for (const [id, mode] of [['cvR', 0], ['cvL', 1]]) {
+    const { ctx, w, h } = setupCanvas($(id));
+    if (F.exact) {                                  // Dirichlet and Thomae
+      ctx.fillStyle = css('--muted'); ctx.font = '12px ' + css('--sans'); ctx.textAlign = 'center';
+      ctx.fillText('this function cannot be drawn', w / 2, h / 2);
+      continue;
+    }
+    panel(ctx, F, mode, 0, 0, w, h, 10);
+  }
+}
+function drawHero() {
+  const { ctx, w, h } = setupCanvas($('heroPlot'));
+  panel(ctx, FN[0], 0, 0, 0, w / 2, h, 12);
+  panel(ctx, FN[0], 1, w / 2, 0, w / 2, h, 8);
+  ctx.strokeStyle = css('--rule'); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.stroke();
+}
+
+/* ---------- exercise 2 ---------- */
+const XS = Array.from({ length: 1024 }, (_, j) => -6 + 12 * ((j * .6180339887) % 1));   // spread-out test points in [−6, 6]
+/* nanoseconds per call, measured for about 30 ms */
+function nsPerCall(fn) {
+  const t0 = performance.now();
+  let c = 0, v = 0;
+  do { for (let j = 0; j < 64; j++) v += fn(XS[(c + j) & 1023]); c += 64; } while (performance.now() - t0 < 30);
+  return (performance.now() - t0) / c * 1e6;
+}
+function run2() {
+  const n = +$('nq').value, fns = PM.map(([, f]) => x => f(x, n));
+  $('st2').textContent = 'Computing…';
+  // accuracy against the published values
+  $('t2').tHead.innerHTML = '<tr><th>x</th><th>reference Φ(x)</th>' + PM.map(m => `<th>${m[0]}</th>`).join('') + '</tr>';
+  let hyb = 0;
+  $('t2').tBodies[0].innerHTML = REF.map(([x, r]) => `<tr><td>${x}</td><td>${r}</td>` + fns.map((f, i) => {
+    const e = Math.abs(f(x) - r) / r;
+    if (i === HYB) hyb = Math.max(hyb, e);
+    return `<td class="${i === HYB ? 'ok' : ''}">${isFinite(e) ? fe(e) : 'NaN'}</td>`;
+  }).join('') + '</tr>').join('');
+  $('sumH').textContent = fe(hyb);
+  $('v2').innerHTML = `Quadrature with n = ${fmtN(n)} is accurate in <i>absolute</i> terms (limited by n for the trapezoid, by rounding for Simpson) but loses the tail: at x = −6, where Φ ≈ 1e-9, an absolute error of 1e-16 would already be a 1e-7 relative error, and at x = −10 the result is useless. The same cancellation (½ minus nearly ½) hits the Kummer series, and the erf Maclaurin series also suffers from huge alternating terms (up to about e<sup>x²/2</sup>). The A&amp;S fits are accurate to 1e-7 or 1e-8 in absolute terms, by design, but their relative error in the tails is large (about 1e-3 at x = −5). The hybrid stays at most <b>${fe(hyb)}</b> relative on all 12 references.`;
+  // cost, and the error on a fine grid against the 70-digit reference
+  const grid = [];
+  for (let i = -800; i <= 800; i++) grid.push(i / 100);
+  const ref = grid.map(refBig), cost = [];
+  $('t3').tBodies[0].innerHTML = PM.map(([name], i) => {
+    let a = 0, r = 0;
+    grid.forEach((x, j) => { const e = Math.abs(fns[i](x) - ref[j]); a = Math.max(a, e); r = Math.max(r, ref[j] > 0 ? e / ref[j] : 0); });
+    cost[i] = nsPerCall(fns[i]);
+    return `<tr><td>${name}${i < 2 ? ' (n = ' + n + ')' : ''}</td><td>${cost[i].toFixed(0)}</td><td>${fe(a)}</td><td>${isFinite(r) ? fe(r) : 'NaN'}</td></tr>`;
+  }).join('');
+  const agree = Math.max(...REF.map(([x, r]) => Math.abs(refBig(x) - r) / r));
+  $('refAgree').textContent = fe(agree);
+  $('facts2').innerHTML =
+    tileHtml(sci(hyb), 'largest relative error of the hybrid on the 12 published values') +
+    tileHtml(sci(phiHybrid(-10), 3), 'Φ(−10) from the hybrid, computed directly (never as 1 − Φ)') +
+    tileHtml(sci(agree), 'largest relative gap between the 70-digit reference and the published values') +
+    tileHtml(cost[HYB].toFixed(0) + ' ns', 'per call, hybrid') +
+    tileHtml((cost[1] / 1000).toFixed(1) + ' µs', `per call, Simpson with n = ${fmtN(n)}, and less accurate`, true);
+  cfTable(); chart3(); calc();
+  $('st2').textContent = 'Done.';
+}
+/* the continued fraction against the series, near the switch point */
+function cfTable() {
+  const xs = [1, 1.5, 2, 3, 5], Ns = [10, 20, 40, 80, 160], err = (f, x) => Math.abs(f(-x) - refBig(-x)) / refBig(-x);
+  $('t4').tHead.innerHTML = '<tr><th>Method</th>' + xs.map(x => `<th>x = −${x}</th>`).join('') + '</tr>';
+  $('t4').tBodies[0].innerHTML =
+    Ns.map(N => `<tr><td>continued fraction, ${N} terms</td>${xs.map(x => `<td>${fe(err(v => phiCF(v, N), x))}</td>`).join('')}</tr>`).join('') +
+    `<tr><td>Kummer series</td>${xs.map(x => `<td>${fe(err(phiSeries, x))}</td>`).join('')}</tr>`;
+}
+function chart3() {
+  const xs = [], n = +$('nq').value;
+  for (let i = 0; i <= 100; i++) xs.push(i / 10);
+  const M = [['erf Maclaurin series', PM[2][1], '--step', 0], ['Kummer series', phiSeries, '--hash', 0], ['A&S 7.1.26 (erf fit)', PM[4][1], '--blue', 0],
+    ['A&S 26.2.17 (Φ fit)', phiAS, '--pub', 0], [`Simpson, n = ${n}`, x => phiSimp(x, n), '--ink', 1], ['Hybrid', phiHybrid, '--key', 0]];
+  const S = M.map(([name, f, c, d]) => ({ n: name, c, d, p: xs.map(x => { const r = refBig(-x); return [x, Math.abs(f(-x) - r) / r]; }) }));
+  loglog($('cv3'), $('leg3'), S, '−x, distance into the left tail', true);
+  const mx = S.map(q => Math.max(...q.p.map(a => a[1])));
+  $('v4').innerHTML = 'Maximum relative error over x from 0 to −10: ' + S.map((q, i) => `${q.n} <b>${fe(mx[i])}</b>`).join(', ') + '. The curves that rise are the ones that compute the tail as a small difference of larger numbers; the two fits have an absolute error of 1e-7 to 1e-8, so their relative error grows from about 1e-8 near x = 0 to the maxima above in the far tail. Only the hybrid, which computes the tail directly, stays within about 1e-14 relative all the way to Φ(−10) ≈ 7.6e-24.';
+}
+function calc() {
+  const x = parseFloat($('cx').value.replace(',', '.')), tb = $('t6').tBodies[0];
+  if (!isFinite(x) || Math.abs(x) > 12) { tb.innerHTML = '<tr><td colspan="3">Enter a number with |x| ≤ 12.</td></tr>'; return; }
+  const n = +$('nq').value, r = refBig(x);
+  tb.innerHTML = `<tr><td><b>reference (70-digit series)</b></td><td>${r.toExponential(15)}</td><td>—</td></tr>` +
+    PM.map(([name, f], i) => { const v = f(x, n); return `<tr><td>${name}${i < 2 ? ' (n = ' + n + ')' : ''}</td><td>${v.toExponential(15)}</td><td>${fe(Math.abs(v - r) / r)}</td></tr>`; }).join('');
+}
+function chart2() {
+  const N = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536];
+  const r196 = REF[2][1], r5 = 1 - 2.866515718791939e-7, S = [];
+  for (const [name, f] of [['trapezoid', phiTrap], ['Simpson', phiSimp]])
+    for (const [x, r] of [[1.96, r196], [5, r5]])
+      S.push({ n: `${name}, x = ${x}`, c: name === 'Simpson' ? '--key' : '--pub', d: x === 5 ? 1 : 0, p: N.map(n => [n, Math.abs(f(x, n) - r)]) });
+  loglog($('cv2'), $('leg2'), S, 'n pieces');
+  $('v3').innerHTML = `Fitted slopes at x = 1.96 (n ≥ 100, errors above 1e-14): trapezoid <b>${slope(S[0].p).toFixed(2)}</b>, Simpson <b>${slope(S[2].p).toFixed(2)}</b>, i.e. second and fourth order, as theory says. Simpson reaches the double-precision floor (about 1e-16) after roughly a thousand pieces, the trapezoid rule has not got there at n = 65,536. At x = 5 (dashed) the errors start larger, because the integral covers more of the curve, and Simpson also reaches the floor, so no slope is quoted. The reference at x = 5 is 1 − 2.8665157188e-7.`;
+}
+
+/* ============================================================
+   START
+   ============================================================ */
+$('fsel').innerHTML = FN.map((F, i) => `<option value="${i}">${F.n}</option>`).join('');
+$('fsel').addEventListener('change', () => { viz(); chart1(); });
+$('run1').addEventListener('click', run1);
+$('nsel').addEventListener('change', run1);
+$('run2').addEventListener('click', run2);
+$('nq').addEventListener('change', run2);
+$('cgo').addEventListener('click', calc);
+$('cx').addEventListener('keydown', e => { if (e.key === 'Enter') calc(); });
+redrawers.push(viz, chart1, chart2, chart3, drawHero);
+showCode('code1', [riemann, lebesgue]);
+showCode('code2', [phiSeries, phiCF, phiHybrid]);
+setTimeout(() => {
+  drawHero(); viz(); chart1();
+  const S = curves(FN[0]);
+  $('sumR').textContent = slope(S[1].p).toFixed(2);
+  $('sumL').textContent = slope(S[3].p).toFixed(2);
+  run1(); run2(); chart2();
+  setTimeout(slopeTable, 100);
+}, 50);
+</script>
+</body>
+</html>
